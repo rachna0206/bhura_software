@@ -20,16 +20,12 @@ if(isset($_REQUEST['btn_modal_update']))
         $stmt->bind_param("iissis",$emp_id,$industrial_estate_id,$start_date,$end_date,$user_id,$action);
         $Resp=$stmt->execute();
 
-        
-
-      }
-
-      foreach($_REQUEST['filter'] as $filter){
-        // insert into pr_emp_estate
-        $stmt_est = $obj->con1->prepare("INSERT INTO `pr_emp_estate`(`employee_id`, `industrial_estate_id`, `assign_estate_status`) VALUES (?,?,?)");
-        $stmt_est->bind_param("iis",$emp_id,$industrial_estate_id,$filter);
-        $Resp_est=$stmt_est->execute();
-
+        foreach($_REQUEST['filter'] as $filter){
+          // insert into pr_emp_estate
+          $stmt_est = $obj->con1->prepare("INSERT INTO `pr_emp_estate`(`employee_id`, `industrial_estate_id`, `assign_estate_status`) VALUES (?,?,?)");
+          $stmt_est->bind_param("iis",$emp_id,$industrial_estate_id,$filter);
+          $Resp_est=$stmt_est->execute();
+        }
       }
     }
 
