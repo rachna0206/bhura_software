@@ -1,0 +1,61 @@
+[17-Jan-2024 15:15:12 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 158
+[17-Jan-2024 15:15:12 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 158
+[17-Jan-2024 15:15:12 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 158
+[17-Jan-2024 15:15:12 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 158
+[17-Jan-2024 15:17:01 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 159
+[17-Jan-2024 15:17:01 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 159
+[17-Jan-2024 15:17:01 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 159
+[17-Jan-2024 15:17:01 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 159
+[17-Jan-2024 15:18:52 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 159
+[17-Jan-2024 15:18:52 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 159
+[17-Jan-2024 15:18:52 Asia/Kolkata] PHP Deprecated:  Unparenthesized `a ? b : c ? d : e` is deprecated. Use either `(a ? b : c) ? d : e` or `a ? b : (c ? d : e)` in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 159
+[18-Jan-2024 17:30:36 Asia/Kolkata] PHP Warning:  unlink(gst_image/): Is a directory in /home/bhuracon/public_html/software.bhuraconsultancy.com/company_entry.php on line 86
+[18-Jan-2024 18:08:39 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to a member function execute() on null in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:51
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 51
+[18-Jan-2024 18:49:35 Asia/Kolkata] PHP Warning:  unlink(gst_image/): Is a directory in /home/bhuracon/public_html/software.bhuraconsultancy.com/company_entry.php on line 86
+[19-Jan-2024 16:25:52 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:25:57 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:26:03 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:26:06 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:26:10 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:26:12 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:26:38 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:28:04 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:28:14 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:28:18 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415
+[19-Jan-2024 16:28:26 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Call to undefined function bind_param() in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php:415
+Stack trace:
+#0 {main}
+  thrown in /home/bhuracon/public_html/software.bhuraconsultancy.com/ajaxdata.php on line 415

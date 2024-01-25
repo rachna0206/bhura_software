@@ -1,0 +1,89 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Untitled Document</title>
+
+<style>
+        .failed {
+            border-color: #ef5350 !important;    
+            box-shadow: inset 0 0 7px #ef5350 !important;
+        }
+        
+    </style>
+
+
+</head>
+
+<body>
+	<form id="vf1">
+    
+    	<!-- Name :<input type="text" name="ntxt" id="ntxt" /><br/>
+        DOB :<input type="date" name="dob" /><br/>
+        Email:<input type="email" name="etxt" /><br/>
+       <div>
+        Gender:<input type="radio" name="gtxt" id="gender_male" value="Male" />Male<input type="radio" name="gtxt" value="Female" id="gender_female" />Female
+    </div>
+        <br/>
+        
+        Phone: <input type="tel" name="ptxt" /><br/>
+        Age:<input type="number" name="test" id="test" onkeyup="check_validity(this)" /><span id="test_alert"></span><br/>
+        <input type="submit" name="submit" value="Reg"/> -->
+    
+    </form>
+UserId :<input type="text" name="userid" id="userid" /><br/>
+Id :<input type="text" name="id" id="id" /><br/>
+Title :<input type="text" name="title" id="title" /><br/>
+Completed :<input type="text" name="completed" id="completed" /><br/>
+    
+
+
+</body>
+</html>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.20.0/jquery.validate.min.js"></script>
+<!-- <script src="jqval.js"></script> -->
+<script type="text/javascript">
+
+    
+
+
+
+    function check_validity(val)
+    {
+        if(val.value<0)
+        {
+            $("#test").addClass("failed");  
+            val.setCustomValidity("Please Enter number greater than or equal to zero...!");
+            $('#test_alert').html("Please Enter positive number");
+            $('#submit').prop('disabled', true);
+            
+        }
+        else
+        {
+            $("#test").removeClass("failed");         
+              
+            val.setCustomValidity("");
+            $('#test_alert').html("");
+            $('#submit').prop('disabled', false);
+        }
+
+    }
+
+    $.ajax({
+    type: "GET",
+    url: "https://jsonplaceholder.typicode.com/todos",
+    data: "id=2",
+    success: function (result) {          
+        //console.log(JSON.stringify( result));
+
+         data=JSON.parse(JSON.stringify( result[0]));
+       
+       $('#userid').val(data.userId);
+       $('#id').val(data.id);
+       $('#title').val(data.title);
+       $('#completed').val(data.completed);
+    }
+    });
+
+</script>

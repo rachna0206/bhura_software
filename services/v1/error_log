@@ -1,0 +1,22 @@
+[21-Aug-2023 17:34:08 Asia/Kolkata] PHP Parse error:  syntax error, unexpected end of file, expecting variable (T_VARIABLE) or ${ (T_DOLLAR_OPEN_CURLY_BRACES) or {$ (T_CURLY_OPEN) in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/include/DbOperation.php on line 392
+[21-Aug-2023 18:07:05 Asia/Kolkata] PHP Fatal error:  Uncaught ArgumentCountError: Too few arguments to function DbOperation::estate_plotting_road(), 15 passed in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/v1/index.php on line 147 and exactly 16 expected in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/include/DbOperation.php:264
+Stack trace:
+#0 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/v1/index.php(147): DbOperation->estate_plotting_road('31', 'Verified', '20', 'Road', 'GUJARAT', 'SURAT', 'Udhna', 'Anjana', 'MOMIN INDUSTRIA...', '', '', '1', '3', '', '0')
+#1 [internal function]: {closure}()
+#2 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Route.php(468): call_user_func_array(Object(Closure), Array)
+#3 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Slim.php(1357): Slim\Route->dispatch()
+#4 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Middleware/Flash.php(85): Slim\Slim->call()
+#5 /home/bhuracon/public_html/s in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/include/DbOperation.php on line 264
+[23-Aug-2023 15:09:05 Asia/Kolkata] PHP Fatal error:  Uncaught Error: Object of class stdClass could not be converted to string in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/v1/index.php:110
+Stack trace:
+#0 [internal function]: {closure}()
+#1 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Route.php(468): call_user_func_array(Object(Closure), Array)
+#2 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Slim.php(1357): Slim\Route->dispatch()
+#3 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Middleware/Flash.php(85): Slim\Slim->call()
+#4 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Middleware/MethodOverride.php(92): Slim\Middleware\Flash->call()
+#5 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Middleware/PrettyExceptions.php(67): Slim\Middleware\MethodOverride->call()
+#6 /home/bhuracon/public_html/software.bhuraconsultancy.com/services/libs/Slim/Slim.php(1302): Slim\Middleware\PrettyExceptions->call() in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/v1/index.php on line 110
+[23-Aug-2023 15:49:39 Asia/Kolkata] PHP Parse error:  syntax error, unexpected 'public' (T_PUBLIC), expecting end of file in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/include/DbOperation.php on line 285
+[23-Aug-2023 15:50:11 Asia/Kolkata] PHP Parse error:  syntax error, unexpected '?>', expecting function (T_FUNCTION) or const (T_CONST) in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/include/DbOperation.php on line 324
+[23-Aug-2023 15:53:23 Asia/Kolkata] PHP Parse error:  syntax error, unexpected '?>', expecting function (T_FUNCTION) or const (T_CONST) in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/include/DbOperation.php on line 323
+[24-Aug-2023 15:05:57 Asia/Kolkata] PHP Fatal error:  Cannot redeclare DbOperation::pr_estate_roadplot() in /home/bhuracon/public_html/software.bhuraconsultancy.com/services/include/DbOperation.php on line 323
