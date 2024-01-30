@@ -403,6 +403,7 @@ if(isset($_REQUEST['btnsubmit_comp']))
   $road_no = $_REQUEST['road_no_comp'];
   $floor = $_REQUEST['floor_comp'];
   $rawdata_id = $_REQUEST['rawdata_id_comp'];
+  //$rawdata_id=$_COOKIE['rawdataid_comp_addplot'];;
   $plotting_pattern = $_REQUEST['plotting_pattern_comp'];
   $area_comp=$_REQUEST['area_comp'];
   $factory_address_comp=$_REQUEST['factory_address_comp'];
@@ -644,7 +645,7 @@ if(isset($_REQUEST['btnsubmit_comp']))
     }
 
     setcookie("msg", "data",time()+3600,"/");
-    //header("location:company_add_plot.php");
+    header("location:company_add_plot.php");
   }
   else
   {
@@ -913,7 +914,8 @@ if(isset($_COOKIE["msg"]) )
             <div id="select_company_first_div" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"":"hidden"?>>
               <div class="mb-3">
                 <label class="form-label" for="rawdata_id_comp">Company</label>
-                <select name="rawdata_id_comp" id="rawdata_id_comp" onchange="get_companyStatus(this.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
+                <input type="hidden" name="rawdata_id_comp" value="<?php echo $rawdataid_comp?>">
+                <select name="rawdata_id_comp2" id="rawdata_id_comp2" onchange="get_companyStatus(this.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?> disabled>
                     <option value="">Select Company</option>
                 <?php 
                     $stmt_company_list = $obj->con1->prepare("SELECT id, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(raw_data->'$.post_fields.Mobile_No') as mobile_no FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'=''");
