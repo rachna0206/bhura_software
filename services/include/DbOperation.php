@@ -420,99 +420,30 @@ public function get_road_no($estate_id)
 }
 
 //get plot no
-public function get_plot_no($taluka,$ind_estate,$area,$filter)
+public function get_plot_no($filter,$estate_id)
 {
-    $plot_array = array();
-
     if($filter=="Visit Pending"){
-        $stmt_plot = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($ind_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%'");
-        $stmt_plot->execute();
-        $plot_res = $stmt_plot->get_result();
-        $stmt_plot->close();
-
-        while($plot = mysqli_fetch_array($plot_res)){
-            $raw_data=json_decode($plot["raw_data"]);
-            $post_fields=$raw_data->post_fields;
-            if(isset($raw_data->plot_details)){
-                $plot_details=$raw_data->plot_details;
-                asort($plot_details);
-                if($post_fields->IndustrialEstate==$ind_estate && $post_fields->Taluka==$taluka){
-                    if($post_fields->GST_No=="" && $post_fields->Premise=="" && $post_fields->GST_No=="" && $post_fields->Firm_Name=="" && $post_fields->Contact_Name=="" && $post_fields->Mobile_No=="" && $raw_data->Constitution=="" && $post_fields->Category=="" && $post_fields->Segment=="" && $raw_data->Status=="" && $post_fields->source=="" && $post_fields->Source_Name=="" && $post_fields->Remarks=="" && $raw_data->Image==""){
-                        foreach ($plot_details as $pd) {
-                            if($pd->Floor == '0'){
-                                $plot_array[] = $pd->Plot_No;
-                            } 
-                        } 
-                    }
-                }
-            }
-        }
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and company_id IS NULL order by abs(plot_no)");
     }
     else if($filter=="Open Plot"){
-        $filter_str = "and raw_data->'$.plot_details.Plot_Status' like '%Open Plot%'";
-        
-        $stmt_plot = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($ind_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%'");
-        $stmt_plot->execute();
-        $plot_res = $stmt_plot->get_result();
-        $stmt_plot->close();
-
-        while($plot = mysqli_fetch_array($plot_res)){
-            $raw_data=json_decode($plot["raw_data"]);
-            $post_fields=$raw_data->post_fields;
-            if(isset($raw_data->plot_details)){
-                $plot_details=$raw_data->plot_details;
-                asort($plot_details);
-                if($post_fields->IndustrialEstate==$ind_estate && $post_fields->Taluka==$taluka){
-                    foreach ($plot_details as $pd) {
-                        if($pd->Plot_Status == 'Open Plot'){
-                            $plot_array[] = $pd->Plot_No;
-                } } }
-            }
-        }
-
-        if(!empty($plot_array)){
-            $plot_array = array_unique($plot_array);
-            sort($plot_array);
-        }
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_status='Open Plot' order by abs(plot_no)");
     } 
-    else if($filter=="Positive" || $filter=="Negative" || $filter=="Existing Client"){
-        $filter_str = "";
-        if($filter=="Positive"){
-            $search = "Positive";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
-        } 
-        else if($filter=="Negative"){
-            $search = "Negative";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
-        } 
-        else if($filter=="Existing Client"){
-            $search = "Existing Client";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
-        } 
+    else if($filter=="Positive"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+    } 
+    else if($filter=="Negative"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+    } 
+    else if($filter=="Existing Client"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+    } 
         
-        $stmt_plot = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($ind_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%' ".$filter_str);
-        $stmt_plot->execute();
-        $plot_res = $stmt_plot->get_result();
-        $stmt_plot->close();
+    $stmt_plot->bind_param("i",$estate_id);    
+    $stmt_plot->execute();
+    $plot_res = $stmt_plot->get_result();
+    $stmt_plot->close();
 
-        while($plot = mysqli_fetch_array($plot_res)){
-            $raw_data=json_decode($plot["raw_data"]);
-            $post_fields=$raw_data->post_fields;
-            if(isset($raw_data->plot_details)){
-                $plot_details=$raw_data->plot_details;
-                asort($plot_details);
-                if($post_fields->IndustrialEstate==$ind_estate && $post_fields->Taluka==$taluka){
-                    foreach ($plot_details as $pd) {
-                        $plot_array[] = $pd->Plot_No;
-                } }
-            }
-        }
-
-        $plot_array = array_unique($plot_array);
-        sort($plot_array);
-    }
-    
-    return json_encode($plot_array);
+    return $plot_res;
 }
 
 public function get_plot_no_old($taluka,$ind_estate,$area)
@@ -537,87 +468,50 @@ public function get_ind_estate_data($estate_id)
 }
 
 //get plot floor
-public function get_plot_floor($taluka,$industrial_estate,$area,$plot_no,$road_no,$filter)
+public function get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pattern)
 {
-    $floor_array = array();
-    if($filter=="Visit Pending"){
-        $stmt_floor = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%'");
-        $stmt_floor->execute();
-        $floor_res = $stmt_floor->get_result();
-        $stmt_floor->close();
-            
-        while($floor=mysqli_fetch_array($floor_res)){
-            $row_data=json_decode($floor["raw_data"]);
-            $post_fields = $row_data->post_fields;
-            if($post_fields->Taluka==$taluka && $post_fields->IndustrialEstate==$industrial_estate){
-                $plot_details=$row_data->plot_details;
-                if($post_fields->GST_No=="" && $post_fields->Premise=="" && $post_fields->GST_No=="" && $post_fields->Firm_Name=="" && $post_fields->Contact_Name=="" && $post_fields->Mobile_No=="" && $row_data->Constitution=="" && $post_fields->Category=="" && $post_fields->Segment=="" && $row_data->Status=="" && $post_fields->source=="" && $post_fields->Source_Name=="" && $post_fields->Remarks=="" && $row_data->Image==""){
-                        foreach ($plot_details as $pd) {
-                            if($pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
-                                $floor_array[] = $pd->Floor;
-                } } }
-            }
+    if($plotting_pattern=='Series'){
+        if($filter=="Visit Pending"){
+            $stmt_floor = $this->con->prepare("SELECT floor FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_no=? and company_id IS NULL order by floor");
         }
-    }
-    else if($filter=="Open Plot"){
-        $stmt_floor = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%'");
-        $stmt_floor->execute();
-        $floor_res = $stmt_floor->get_result();
-        $stmt_floor->close();
-            
-        while($floor=mysqli_fetch_array($floor_res)){
-            $row_data=json_decode($floor["raw_data"]);
-            $post_fields = $row_data->post_fields;
-            if($post_fields->Taluka==$taluka && $post_fields->IndustrialEstate==$industrial_estate){
-                $plot_details=$row_data->plot_details;
-                foreach ($plot_details as $pd) {
-                    if($pd->Plot_No==$plot_no && $pd->Road_No==$road_no && $pd->Plot_Status == 'Open Plot'){
-                        $floor_array[] = $pd->Floor;
-            } } }
-        }
-    } 
-    else if($filter=="Positive" || $filter=="Negative" || $filter=="Existing Client"){
-        $filter_str = "";
-        if($filter=="Positive"){
-            $search = "Positive";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
+        else if($filter=="Open Plot"){
+            $stmt_floor = $this->con->prepare("SELECT floor FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_no=? and plot_status='Open Plot' order by floor");
+        } 
+        else if($filter=="Positive"){
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         } 
         else if($filter=="Negative"){
-            $search = "Negative";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         } 
         else if($filter=="Existing Client"){
-            $search = "Existing Client";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         }
-
-        $stmt_floor = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%'".$filter_str);
-        $stmt_floor->execute();
-        $floor_res = $stmt_floor->get_result();
-        $stmt_floor->close();
-            
-        while($floor=mysqli_fetch_array($floor_res)){
-            $row_data=json_decode($floor["raw_data"]);
-            $post_fields = $row_data->post_fields;
-            if($post_fields->Taluka==$taluka && $post_fields->IndustrialEstate==$industrial_estate){
-                $plot_details=$row_data->plot_details;
-                foreach ($plot_details as $pd) {
-                    if($pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
-                        $floor_array[] = $pd->Floor;
-            } } }
+        $stmt_floor->bind_param("is",$estate_id,$plot_no);
+    }
+    else if($plotting_pattern=='Road'){
+        if($filter=="Visit Pending"){
+            $stmt_floor = $this->con->prepare("SELECT floor FROM `pr_company_plots` WHERE industrial_estate_id=? and  road_no=? and plot_no=? and company_id IS NULL order by floor");
         }
+        else if($filter=="Open Plot"){
+            $stmt_floor = $this->con->prepare("SELECT floor FROM `pr_company_plots` WHERE industrial_estate_id=? and road_no=? and plot_no=? and plot_status='Open Plot' order by floor");
+        } 
+        else if($filter=="Positive"){
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+        } 
+        else if($filter=="Negative"){
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+        } 
+        else if($filter=="Existing Client"){
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+        }
+        $stmt_floor->bind_param("iss",$estate_id,$road_no,$plot_no);
     }
 
-    sort($floor_array);
-    return json_encode($floor_array);
-    foreach($floor_array as $floor_no){
-        if($floor_no=='0'){
-            $html.='<option value="'.$floor_no.'">Ground Floor</option>';
-        }
-        else{
-            $html.='<option value="'.$floor_no.'">'.$floor_no.'</option>';
-        }
-    }
+    $stmt_floor->execute();
+    $floor_res = $stmt_floor->get_result();
+    $stmt_floor->close();
+        
+    return $floor_res;
 }
 
 public function get_plot_floor_old($taluka,$industrial_estate,$area,$plot_no,$road_no)
@@ -630,97 +524,30 @@ public function get_plot_floor_old($taluka,$industrial_estate,$area,$plot_no,$ro
 }
 
 //get road plot 
-public function get_road_plot($taluka,$industrial_estate,$area,$filter)
+public function get_road_plot($filter,$estate_id,$road_no)
 {
-    $plot_array = array();
-
     if($filter=="Visit Pending"){
-        $stmt_plot = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%'");
-        $stmt_plot->execute();
-        $plot_res = $stmt_plot->get_result();
-        $stmt_plot->close();
-
-        while($plot = mysqli_fetch_array($plot_res)){
-            $raw_data=json_decode($plot["raw_data"]);
-            $post_fields=$raw_data->post_fields;
-            if(isset($raw_data->plot_details)){
-                $plot_details=$raw_data->plot_details;
-                asort($plot_details);
-                if($post_fields->IndustrialEstate==$industrial_estate && $post_fields->Taluka==$taluka){
-                    if($post_fields->GST_No=="" && $post_fields->Premise=="" && $post_fields->GST_No=="" && $post_fields->Firm_Name=="" && $post_fields->Contact_Name=="" && $post_fields->Mobile_No=="" && $raw_data->Constitution=="" && $post_fields->Category=="" && $post_fields->Segment=="" && $raw_data->Status=="" && $post_fields->source=="" && $post_fields->Source_Name=="" && $post_fields->Remarks=="" && $raw_data->Image==""){
-                        foreach ($plot_details as $pd) {
-                            if($pd->Floor == '0'){
-                                $plot_array[] = $pd->Plot_No;
-                    } } }
-                }
-            }
-        }
-        sort($plot_array);
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and road_no=? and company_id IS NULL order by abs(plot_no)");
     }
     else if($filter=="Open Plot"){
-        $filter_str = "and raw_data->'$.plot_details.Plot_Status' like '%Open Plot%'";
-        
-        $stmt_plot = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%'");
-        $stmt_plot->execute();
-        $plot_res = $stmt_plot->get_result();
-        $stmt_plot->close();
-
-        while($plot = mysqli_fetch_array($plot_res)){
-            $raw_data=json_decode($plot["raw_data"]);
-            $post_fields=$raw_data->post_fields;
-            if(isset($raw_data->plot_details)){
-                $plot_details=$raw_data->plot_details;
-                asort($plot_details);
-                if($post_fields->IndustrialEstate==$industrial_estate && $post_fields->Taluka==$taluka){
-                    foreach ($plot_details as $pd) {
-                      if($pd->Plot_Status == 'Open Plot'){
-                        $plot_array[] = $pd->Plot_No;
-                } } }
-            }
-        }
-
-        if(!empty($plot_array)){
-            $plot_array = array_unique($plot_array);
-            sort($plot_array);
-        }
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and road_no=? and plot_status='Open Plot' order by abs(plot_no)");
     } 
-    else if($filter=="Positive" || $filter=="Negative" || $filter=="Existing Client"){
-        $filter_str = "";
-        if($filter=="Positive"){
-            $search = "Positive";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
-        } 
-        else if($filter=="Negative"){
-            $search = "Negative";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
-        } 
-        else if($filter=="Existing Client"){
-            $search = "Existing Client";
-            $filter_str = "and raw_data->'$.Status' like '%".$search."%'";
-        }
-
-        $stmt_plot = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%' ".$filter_str);
-        $stmt_plot->execute();
-        $plot_res = $stmt_plot->get_result();
-        $stmt_plot->close();
-
-        while($plot = mysqli_fetch_array($plot_res)){
-            $raw_data=json_decode($plot["raw_data"]);
-            $post_fields=$raw_data->post_fields;
-            if(isset($raw_data->plot_details)){
-                $plot_details=$raw_data->plot_details;
-                asort($plot_details);
-                if($post_fields->IndustrialEstate==$industrial_estate && $post_fields->Taluka==$taluka){
-                    foreach ($plot_details as $pd) {
-                        $plot_array[] = $pd->Plot_No;
-            } } }
-        }
-
-        $plot_array = array_unique($plot_array);
-        sort($plot_array);
+    else if($filter=="Positive"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+    } 
+    else if($filter=="Negative"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+    } 
+    else if($filter=="Existing Client"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
     }
 
-    return json_encode($plot_array);
+    $stmt_plot->bind_param("is",$estate_id,$road_no);
+    $stmt_plot->execute();
+    $plot_res = $stmt_plot->get_result();
+    $stmt_plot->close();
+
+    return $plot_res;
 }
 
 public function get_road_plot_old($taluka,$industrial_estate,$area)
@@ -764,18 +591,38 @@ public function check_gst($gst_no,$id)
 public function get_pr_company_plot($plotting_pattern,$estate_id,$plot_no,$floor_no,$road_no)
 {
     if($plotting_pattern=="Series"){
-        $stmt_company_plot = $this->con->prepare("SELECT pid, company_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=?");
+        $stmt_company_plot = $this->con->prepare("SELECT pid, company_id, plot_no, floor, road_no, plot_status, plot_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=?");
         $stmt_company_plot->bind_param("sii",$plot_no,$floor_no,$estate_id);
     }
     else if($plotting_pattern=="Road"){
-        $stmt_company_plot = $this->con->prepare("SELECT pid, company_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=? and road_no=?");
+        $stmt_company_plot = $this->con->prepare("SELECT pid, company_id, plot_no, floor, road_no, plot_status, plot_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=? and road_no=?");
         $stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$estate_id,$road_no);
     }
     $stmt_company_plot->execute();
-    $pr_company_plot = $stmt_company_plot->get_result()->fetch_assoc();
+    $pr_company_plot = $stmt_company_plot->get_result();
     $stmt_company_plot->close();
 
     return $pr_company_plot;
+}
+
+public function get_pr_company_details($company_id){
+    $stmt_company_details = $this->con->prepare("SELECT image, constitution, status FROM `pr_company_details` where cid=?");
+                $stmt_company_details->bind_param("i",$company_id);
+    $stmt_company_details->execute();
+    $pr_company_details = $stmt_company_details->get_result()->fetch_assoc();
+    $stmt_company_details->close();
+
+    return $pr_company_details;
+}
+
+public function get_tbl_tdrawassign($rawdata_id){
+    $stmt_status = $this->con->prepare("SELECT stage FROM `tbl_tdrawassign` WHERE inq_id=? order by id desc LIMIT 1");
+    $stmt_status->bind_param("i",$rawdata_id);
+    $stmt_status->execute();
+    $status_result = $stmt_status->get_result();
+    $stmt_status->close();
+    
+    return $status_result;
 }
 
 // get json from tbl_tdrawdata
@@ -923,11 +770,11 @@ public function get_badlead_reason($inq_id)
 {
     $stmt_reason = $this->con->prepare("SELECT bad_lead_reason FROM `tbl_tdbadleads` WHERE inq_id=?");
     $stmt_reason->bind_param("i",$inq_id);
-        $stmt_reason->execute();
-        $reason_result = $stmt_reason->get_result()->fetch_assoc();
-        $stmt_reason->close();
-        $reason = $reason_result['bad_lead_reason'];
-        return $reason;
+    $stmt_reason->execute();
+    $reason_result = $stmt_reason->get_result()->fetch_assoc();
+    $stmt_reason->close();
+    $reason = $reason_result['bad_lead_reason'];
+    return $reason;
 }
 
 // insert into pr_company_details and pr_company_plots
@@ -981,68 +828,56 @@ public function check_additional_plot($additional_plot,$road_no,$estate_id)
 }
 
 // get floor for add floor modal
-public function get_floor_floormodal($industrial_estate,$area,$taluka,$plot_no,$road_no)
+public function get_floor_floormodal($plot_no,$road_no,$estate_id,$plotting_pattern)
 {
-    $floors_inuse = array();
-    $all_floors = array(0,1,2,3,4,5,6,7,8,9,10);
+    if($plotting_pattern=='Series'){
+        $stmt = $this->con->prepare("SELECT all_numbers.floor FROM ( SELECT 0 AS floor UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT DISTINCT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' ) AS plots ON all_numbers.floor = plots.floor WHERE plots.floor IS NULL");
+    }
+    else if($plotting_pattern=='Road'){
+        $stmt = $this->con->prepare("SELECT all_numbers.floor FROM ( SELECT 0 AS floor UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT DISTINCT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and road_no='".$road_no."' ) AS plots ON all_numbers.floor = plots.floor WHERE plots.floor IS NULL");
+    }
 
-    $stmt = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%'");
     $stmt->execute();
     $data = $stmt->get_result();
     $stmt->close();
 
-    while($floor=mysqli_fetch_array($data)){
-        $row_data=json_decode($floor["raw_data"]);
-        $post_fields = $row_data->post_fields;
-        if($post_fields->Area==$area && $post_fields->IndustrialEstate==$industrial_estate){
-            $plot_details=$row_data->plot_details;
-            foreach ($plot_details as $pd) {
-                if($pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
-                    array_push($floors_inuse, $pd->Floor);
-                }
-            }
-        }
+    return $data;
+}
+
+// get plot for add plot modal
+public function get_plot_plotmodal($old_road_no,$old_plot_no,$road_no,$plotting_pattern,$estate_id)
+{
+    // to all plots - plot selected
+    if($plotting_pattern=='Series'){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id='".$estate_id."' and plot_no!='".$old_plot_no."' order by abs(plot_no)");
     }
-
-    $result=array_udiff($all_floors,$floors_inuse,function ($a,$b){
-        if ($a==$b){ return 0; }
-          return ($a>$b)?1:-1;
-        });
-
-    return $result;
+    else if($plotting_pattern=='Road'){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id='".$estate_id."' AND road_no='".$road_no."' AND (road_no!='".$old_road_no."' OR plot_no!='".$old_plot_no."') ORDER BY ABS(plot_no)");
+    }
+    
+    $stmt_plot->execute();
+    $plot_res = $stmt_plot->get_result();
+    $stmt_plot->close();        
+    
+    return $plot_res;
 }
 
 // get floor for add plot modal
-public function get_floor_plotmodal($industrial_estate,$area,$taluka,$plot_no,$road_no)
+public function get_floor_plotmodal($plot_no,$road_no,$plotting_pattern,$estate_id)
 {
-    $floor_array = array();
-        
-    // to get floors whose gst no!=""
-    $stmt_floor = $this->con->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Area') like '%".strtolower($area)."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($industrial_estate)."%' and lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($taluka)."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%'");
+    // to get floors whose company details is blank + other floors left
+    if($plotting_pattern=='Series'){
+        $stmt_floor = $this->con->prepare("SELECT all_numbers.number as floor FROM ( SELECT 0 AS number UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and company_id is NOT null ) AS existing_numbers ON all_numbers.number = existing_numbers.floor WHERE existing_numbers.floor IS NULL order by abs(number)");
+    }
+    else if($plotting_pattern=='Road'){
+        $stmt_floor = $this->con->prepare("SELECT all_numbers.number as floor FROM ( SELECT 0 AS number UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and road_no='".$road_no."' and company_id is NOT null ) AS existing_numbers ON all_numbers.number = existing_numbers.floor WHERE existing_numbers.floor IS NULL order by abs(number)");
+    }
+    
     $stmt_floor->execute();
     $floor_res = $stmt_floor->get_result();
-    $stmt_floor->close();
-
-    while($floor=mysqli_fetch_array($floor_res)){
-        $row_data=json_decode($floor["raw_data"]);
-        $post_fields = $row_data->post_fields;
-
-        if($post_fields->Area==$area && $post_fields->IndustrialEstate==$industrial_estate && $post_fields->GST_No==""){
-            if($post_fields->Premise=="" && $post_fields->GST_No=="" && $post_fields->Firm_Name=="" && $post_fields->Contact_Name=="" && $post_fields->Mobile_No=="" && $row_data->Constitution=="" && $post_fields->Category=="" && $post_fields->Segment=="" && $row_data->Status=="" && $post_fields->source=="" && $post_fields->Source_Name=="" && $post_fields->Remarks=="" && $row_data->Image==""){
-
-                    $plot_details=$row_data->plot_details;
-                    foreach ($plot_details as $pd) {
-                        if($pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
-                            $floor_array[] = $pd->Floor;
-                }
-              }
-            }
-        }
-    }
-
-    sort($floor_array);
-
-    return $floor_array;
+    $stmt_floor->close();        
+    
+    return $floor_res;
 }
 
 
@@ -1200,6 +1035,60 @@ public function insert_reminder($inq_id,$user_id,$reminder_dt,$reminder_text,$re
     $Resp=$stmt_status->execute();
     $stmt_status->close();
 }
+
+// get state list
+public function get_state_list()
+{
+    $stmt_state = $this->con->prepare("SELECT DISTINCT(state) from `all_taluka`");
+    $stmt_state->execute();
+    $state_result = $stmt_state->get_result();
+    $stmt_state->close();
+    return $state_result;
+}
+
+// get city list
+public function get_city_list($state)
+{
+    $stmt_city = $this->con->prepare("SELECT DISTINCT(district) from `all_taluka` where state=?");
+    $stmt_city->bind_param("s",$state);
+    $stmt_city->execute();
+    $city_result = $stmt_city->get_result();
+    $stmt_city->close();
+    return $city_result;
+}
+
+// get designation list
+public function get_designation_list()
+{
+    $stmt_designation = $this->con->prepare("SELECT designation_name FROM `designation_master`");
+    $stmt_designation->execute();
+    $designation_result = $stmt_designation->get_result();
+    $stmt_designation->close();
+    return $designation_result;
+}
+
+// get vertical list
+public function get_vertical_list()
+{
+    $stmt_vertical = $this->con->prepare("SELECT id,service_type FROM `tbl_service_type` WHERE status='active'");
+    $stmt_vertical->execute();
+    $vertical_result = $stmt_vertical->get_result();
+    $stmt_vertical->close();
+    return $vertical_result;
+}
+
+// get service names list
+public function get_service_name_list($vertical)
+{
+    $stmt_service = $this->con->prepare("SELECT id,service FROM `tbl_service_master` WHERE service_type=? and status='active'");
+    $stmt_service->bind_param("i",$vertical);
+    $stmt_service->execute();
+    $service_result = $stmt_service->get_result();
+    $stmt_service->close();
+    return $service_result;
+}
+//7239
+// supplier details (machinery) => SELECT json_unquote(raw_data->'$.post_fields.Firm_Name') as supplier_details FROM `tbl_tdassodata` where lower(raw_data->'$.post_fields.Segment_Name') like '%machine supplier%' order by id desc;
 
 /*public function pr_estate_roadplot($ind_estate_id,$road_number,$additional_plotno,$user_id)
 {

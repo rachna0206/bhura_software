@@ -136,13 +136,14 @@ if(isset($_REQUEST['btnsubmit']))
   $post_fields->Completion_Date = $_COOKIE['completion_date'];
   $post_fields->Existing_client_status = $_COOKIE['expansion_status'];
   $plot_details["$plot_index"]->Plot_Status = $plot_status;
+
   if($_COOKIE['expansion_status']=="positive for expansion")
   {
-    $row_data->Status = "positive";
+    $row_data->Status = "Positive";
   }
   else if($_COOKIE['expansion_status']=="negative for expansion")
   {
-    $row_data->Status = "negative";
+    $row_data->Status = "Negative";
   }
   else
   {
@@ -309,6 +310,10 @@ if(isset($_REQUEST['btnsubmit']))
 
   if($Resp)
   {
+    setcookie("loan_sanction", "data",time()-3600,"/");
+    setcookie("completion_date", "data",time()-3600,"/");
+    setcookie("expansion_status", "data",time()-3600,"/");
+
     setcookie("msg", "data",time()+3600,"/");
     header("location:company_entry.php");
   }
@@ -1519,10 +1524,10 @@ if(isset($_COOKIE["msg"]) )
       $('#filter').append('<option value="">None</option>');
       if(road_no!="null"){
         //getRoadPlots(road_no,estate_id,filter);  
+        $('#road_list_div').removeAttr("hidden");
         $('#road_no').html('');
         $('#road_no').append('<option value="'+road_no+'">'+road_no+'</option>');
         $('#road_no').val(road_no);
-        document.getElementById('#road_no').disabled = true;
       }
       $('#industrial_estate_id').val(estate_id);
       $('#plot_no').html('');
@@ -1639,8 +1644,6 @@ if(isset($_COOKIE["msg"]) )
       /*$('#addPlotModal').attr("hidden",true);
       $('#addFloorModal').attr("hidden",true);
       $('#otherPlotModal').removeAttr("hidden");*/
-      
-      
     }
     else{
       window.location.reload();
@@ -1698,7 +1701,6 @@ if(isset($_COOKIE["msg"]) )
         data: "road_no="+road_no+"&estate_id="+estate_id+"&filter="+filter,
         cache: false,
         success: function(result){
-          
           $('#plot_no').html('');
           $('#plot_no').append(result);
           $('#floor').html('');
@@ -1752,7 +1754,6 @@ if(isset($_COOKIE["msg"]) )
       data: "plot_no="+plot_no+"&estate_id="+estate_id+"&floor_no="+floor_no+"&road_no="+road_no,
       cache: false,
       success: function(result){
-        
         var res = $.parseJSON(result);
         
         $('#ttId').val(res['Id']);
@@ -1897,7 +1898,6 @@ if(isset($_COOKIE["msg"]) )
       data: "id="+id+"&plot_no="+plot_no+"&road_no="+road_no+"&estate_id="+estate_id+"&area="+area+"&industrial_estate="+industrial_estate+"&floor_no="+floor_no+"&pr_company_detail_id="+pr_company_detail_id,
       cache: false,
       success: function(result){
-        
         $('#addFloor_div').html('');
         $('#addFloor_div').append(result);
         $('#floorModal').modal('toggle');
@@ -1905,15 +1905,14 @@ if(isset($_COOKIE["msg"]) )
     });
   }
 
-  function get_plotno_plotmodal(road_no,estate_id) {
+  function get_plotno_plotmodal(road_no,estate_id,not_road_no,not_plot_no) {
     $.ajax({
       async: false,
       type: "POST",
       url: "ajaxdata.php?action=get_plotno_plotmodal",
-      data: "road_no="+road_no+"&estate_id="+estate_id,
+      data: "road_no="+road_no+"&estate_id="+estate_id+"&not_road_no="+not_road_no+"&not_plot_no="+not_plot_no,
       cache: false,
       success: function(result){
-        
         $('#plot_no_plotmodal').html('');
         $('#plot_no_plotmodal').append(result);
         $('#floor_plotmodal').html('<option value="0">Ground Floor</option>');

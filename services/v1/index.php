@@ -2176,7 +2176,6 @@ $app->post('/get_plot','authenticateUser', function () use ($app) {
             $data['success'] = true;
         }
         else{
-
             $data['message'] = "No Data Found";
             $data['success'] = false;
         }
@@ -2184,15 +2183,16 @@ $app->post('/get_plot','authenticateUser', function () use ($app) {
     }
     else if($plotting_pattern=="Series")
     {
-        $res_plot=$db->get_plot_no($result_estate['taluka'],$result_estate['industrial_estate'],$result_estate['area_id'],$filter);
-
+        // (error handle) can have empty result set
+        $res_plot=$db->get_plot_no($filter,$estate_id);
         if(!empty($res_plot))
         {
-            $res_plot = json_decode($res_plot);
             $temp = array();
-            foreach($res_plot as $value){
-                 $temp["plot_no"] = $value;
-                 $temp = array_map('utf8_encode', $temp);
+            while ($row = $res_plot->fetch_assoc()) {
+                foreach($row as $key => $value){
+                    $temp["plot_no"] = $value;
+                }
+                $temp = array_map('utf8_encode', $temp);
                 array_push($data['data'], $temp);
             }
             
@@ -2216,33 +2216,33 @@ $app->post('/get_floor','authenticateUser', function () use ($app) {
     $data_request = json_decode($app->request->post('data'));
     $estate_id = $data_request->estate_id;
     $plot_no=$data_request->plot_no;
-    $road_no=$data_request->road_no;
+    $road_no=isset($data_request->road_no)?$data_request->road_no:"";
     $filter=$data_request->filter;
   
     $db = new DbOperation();
     $data = array();
     $data["data"] = array();
     
-    $result_estate=$db->get_ind_estate_data($estate_id);
+    $result_estate=$db->get_ind_estate($estate_id);
+    $plotting_pattern = $result_estate['plotting_pattern'];
     
-    $res_floor=$db->get_plot_floor($result_estate['taluka'],$result_estate['industrial_estate'],$result_estate['area_id'],$plot_no,$road_no,$filter);
+    $res_floor=$db->get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pattern);
 
-    if(!empty($res_floor))
+    if(mysqli_num_rows($res_floor)>0)
     {
-        $res_floor = json_decode($res_floor);
         $temp = array();
-        foreach($res_floor as $value){
-            if($value=='0'){
-                $temp["floor_no"]="Ground Floor";
-            }
-            else{
-                $temp["floor_no"] = $value;
+        while($row = mysqli_fetch_array($res_floor)){
+            foreach($row as $key => $value){
+                if($value=='0'){
+                    $temp["floor_no"]="Ground Floor";
+                }
+                else{
+                    $temp["floor_no"] = $value;
+                }
             }
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data'], $temp);
-            
         }
-        
         $data['message'] = "";
         $data['success'] = true;
     }
@@ -2268,17 +2268,17 @@ $app->post('/get_road_plot','authenticateUser', function () use ($app) {
     $db = new DbOperation();
     $data = array();
     $data["data"] = array();
-    $plot_array = array();
-    $result_estate=$db->get_ind_estate($estate_id);
-   
-    $res_plot=$db->get_road_plot($result_estate['taluka'],$result_estate['industrial_estate'],$result_estate['area_id'],$filter);
+    
+    $res_plot=$db->get_road_plot($filter,$estate_id,$road_no);
 
-    if(!empty($res_plot))
+    if(mysqli_num_rows($res_plot)>0)
     {
-        $res_plot = json_decode($res_plot);
+        // (error handle) can have empty result set
         $temp = array();
-        foreach($res_plot as $value){
-            $temp["plot_no"] = $value;
+        while($row = mysqli_fetch_array($res_plot)){
+            foreach($row as $key => $value){
+                $temp["plot_no"] = $value;
+            }
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data'], $temp);
         }
@@ -2351,7 +2351,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
     $estate_id = $data_request->estate_id;
     $floor_no=$data_request->floor_no;
     $plot_no=$data_request->plot_no;
-    $road_no=$data_request->road_no;
+    $road_no=isset($data_request->road_no)?$data_request->road_no:"";
 
     $floor_no=($floor_no=="Ground Floor")?"0":$floor_no;
   
@@ -2363,58 +2363,94 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
    
     if($plot_no!="" && $floor_no!="")
     {
+        // get common values from json from table tbl_tdrawdata
         $res_company=$db->get_company_details($result_estate['taluka'],$result_estate['industrial_estate'],$result_estate['area_id'],$plot_no,$floor_no,$road_no);
 
         if(mysqli_num_rows($res_company)>0){
+            // get plot details from pr_company_plots
             $res_pattern=$db->get_ind_estate($estate_id);
 
-            $res_company_plot=$db->get_pr_company_plot($res_pattern['plotting_pattern'],$estate_id,$plot_no,$floor_no,$road_no);
+            $constitution = "";
+            $image = "";
+            $pr_comp_status = "";
+
+            $result_company_plot=$db->get_pr_company_plot($res_pattern['plotting_pattern'],$estate_id,$plot_no,$floor_no,$road_no);
+
+            $res_company_plot=$result_company_plot->fetch_assoc();
+
+            // get image and contitution from pr_company_details
+            if($res_company_plot["company_id"]!="" || $res_company_plot["company_id"]!=null){
+                $res_company_details=$db->get_pr_company_details($res_company_plot["company_id"]);
+
+                $image = $res_company_details['image'];
+                $constitution = $res_company_details['constitution']; 
+                $pr_comp_status = $res_company_details['status'];
+            }
 
             while($plot = mysqli_fetch_array($res_company)){
                 $row_data = json_decode($plot["raw_data"]);
                 $post_fields = $row_data->post_fields;
 
-                if($post_fields->IndustrialEstate==$result_estate['industrial_estate'] && $post_fields->Taluka==$result_estate['taluka']){
+                if($post_fields->IndustrialEstate==$result_estate['industrial_estate'] && $post_fields->Taluka==$result_estate['taluka'] && $post_fields->Area==$result_estate['area_id']){
 
                     $plot_details = $row_data->plot_details;
 
                     foreach ($plot_details as $pd) {
-                        if($pd->Floor==$floor_no && $pd->Plot_No==$plot_no){
-                            $plot_id = $pd->Plot_Id;
-                            $plot_status = $pd->Plot_Status;
-                            $road_no = $pd->Road_No;
-
+                        if($pd->Floor==$floor_no && $pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
+                            
                             $reason = "";
+                            $status = "";
+
+                            // get company status (positive/negative/existing) from tbl_tdrawassign
+                            $rawassign_status = $db->get_tbl_tdrawassign($plot['id']);
+
+                            if(mysqli_num_rows($rawassign_status)>0){
+                                $status_res = mysqli_fetch_array($rawassign_status);
+                                if($status_res['stage']=="lead"){
+                                    $status = "Positive";   
+                                }
+                                else if($status_res['stage']=="badlead"){
+                                    $status = "Negative";   
+                                }
+                                else{
+                                    $status = "Existing Client";    
+                                }
+                            }
+                            else{
+                                $status = ($pr_comp_status!=null)?$pr_comp_status:"";
+                            }
+
                             if($row_data->Status=='Negative'){
                                 $reason = $db->get_badlead_reason($plot['id']);
                             }
 
                             $details = Array (
                                     "Id" => $plot["id"],
-                                    "Plot_Id" => $plot_id,
+                                    "Plot_Id" => $res_company_plot['plot_id'],
                                     "Road_No" => $road_no,
                                     "IndustrialEstate" => $post_fields->IndustrialEstate,
                                     "Area" => $post_fields->Area,
-                                    "Plot_Status" => $plot_status,
+                                    "Plot_Status" => $res_company_plot['plot_status'],
                                     "Premise" => $post_fields->Premise,
                                     "GST_No" => $post_fields->GST_No,
                                     "Firm_Name" => $post_fields->Firm_Name,
                                     "Contact_Name" => $post_fields->Contact_Name,
                                     "Mobile_No" => $post_fields->Mobile_No,
-                                    "Constitution" => $row_data->Constitution,
+                                    "Constitution" => $constitution,
                                     "Category" => $post_fields->Category,
-                                    "Segment" => $post_fields->Segment,
+                                    "Segment" => $status,
                                     "Status" => $row_data->Status,
                                     "Reason" => $reason,
                                     "source" => $post_fields->source,
                                     "Source_Name" => $post_fields->Source_Name,
                                     "Remarks" => $post_fields->Remarks,
-                                    "Image" => ($row_data->Image=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$row_data->Image,
+                                    "Image" => ($image=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$image,
                                     "Company_detail_id" => $res_company_plot["company_id"],
                                     "Company_plot_id" => $res_company_plot["pid"]
                             );
 
-                            if($plot['id']!="" && $plot_id!="" && $post_fields->IndustrialEstate!="" && $post_fields->Area!="" && $plot_status!="" && $post_fields->Premise!="" && $post_fields->GST_No!="" && $post_fields->Firm_Name!="" && $post_fields->Contact_Name!="" && $post_fields->Mobile_No!="" && $row_data->Constitution!="" && $post_fields->Category!="" && $post_fields->Segment!="" && $row_data->Status!="" && $post_fields->source!="" && $post_fields->Source_Name!="" && $post_fields->Remarks!="" && $row_data->Image!=""){
+                            //if($plot['id']!="" && $plot_id!="" && $post_fields->IndustrialEstate!="" && $post_fields->Area!="" && $plot_status!="" && $post_fields->Premise!="" && $post_fields->GST_No!="" && $post_fields->Firm_Name!="" && $post_fields->Contact_Name!="" && $post_fields->Mobile_No!="" && $row_data->Constitution!="" && $post_fields->Category!="" && $post_fields->Segment!="" && $row_data->Status!="" && $post_fields->source!="" && $post_fields->Source_Name!="" && $post_fields->Remarks!="" && $row_data->Image!=""){
+                            if($res_company_plot["pid"]==null && $plot["id"]!=""){
                                 $data['message'] = "hide data";
                             }
                             else{
@@ -2431,8 +2467,6 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                             $data["data"]=$details;
     
                             $data['success'] = true;
-                            
-                            //break;
                         }
                     }
                 }
@@ -2729,6 +2763,9 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
     $pr_company_plot_id = $data_request->company_plot_id;
     $pr_company_detail_id = $data_request->company_detail_id;
     $user_id = $data_request->user_id;
+    $existing_expansion_status = isset($data_request->existing_expansion_status)?$data_request->existing_expansion_status:"";
+    $loan_sanction = isset($data_request->loan_sanction)?$data_request->loan_sanction:"";
+    $completion_date = isset($data_request->completion_date)?$data_request->completion_date:"";
     $badlead_type = "lead";
     $PicFileName="";
 
@@ -2793,12 +2830,29 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
     $row_data->Constitution = $constitution;
     $post_fields->Category = $category;
     $post_fields->Segment = $segment;
-    $row_data->Status = $status;
+    
     $post_fields->source = $source;
     $post_fields->Source_Name = $source_name;
     $row_data->Image = $PicFileName;
     $post_fields->Remarks = $remark;
+    $post_fields->loan_applied = $loan_sanction;
+    $post_fields->Completion_Date = $completion_date;
+    $post_fields->Existing_client_status = $existing_expansion_status;
     $plot_details["$plot_index"]->Plot_Status = $plot_status;
+
+    if($existing_expansion_status=="positive for expansion")
+    {
+        $row_data->Status = "Positive";
+    }
+    else if($existing_expansion_status=="negative for expansion")
+    {
+        $row_data->Status = "Negative";
+    }
+    else
+    {
+        $row_data->Status = $status;
+    }
+
     if($status=='Negative'){
         $row_data->bad_lead_reason = $badlead_reason;
     }
@@ -2892,7 +2946,7 @@ $app->post('/check_additional_plot','authenticateUser', function () use ($app) {
     verifyRequiredParams(array('data'));
     $data_request = json_decode($app->request->post('data'));
     $additional_plot_no = $data_request->additional_plot_no;
-    $road_no=$data_request->road_no;
+    $road_no=isset($data_request->road_no)?$data_request->road_no:"";
     $estate_id=$data_request->estate_id;
   
     $db = new DbOperation();
@@ -2921,7 +2975,7 @@ $app->post('/add_additional_plot','authenticateUser', function () use ($app) {
     verifyRequiredParams(array('data'));
     $data_request = json_decode($app->request->post('data'));
     $additional_plot_no = strtoupper($data_request->additional_plot_no);
-    $road_no=$data_request->road_no;
+    $road_no=($data_request->road_no)?$data_request->road_no:"";
     $estate_id=$data_request->estate_id;
     $user_id=$data_request->user_id;
     $floor = '0';
@@ -3108,22 +3162,23 @@ $app->post('/get_floor_floormodal','authenticateUser', function () use ($app) {
     verifyRequiredParams(array('data'));
     $data_request = json_decode($app->request->post('data'));
     $plot_no = $data_request->plot_no;
-    $road_no=$data_request->road_no;
+    $road_no=isset($data_request->road_no)?$data_request->road_no:"";
     $estate_id=$data_request->estate_id;
   
     $db = new DbOperation();
     $data = array();
     $data["data"] = array();
 
-    $result_estate=$db->get_ind_estate_data($estate_id);
+    $result_estate=$db->get_ind_estate($estate_id);
+    $plotting_pattern = $result_estate['plotting_pattern'];
 
     if(count($result_estate)>0){
-        $result=$db->get_floor_floormodal($result_estate['industrial_estate'],$result_estate['area_id'],$result_estate['taluka'],$plot_no,$road_no);
+        $result=$db->get_floor_floormodal($plot_no,$road_no,$estate_id,$plotting_pattern);
     
-        foreach ($result as $floor_no){
-            $data['data'][] = $floor_no;
+        while($row = mysqli_fetch_array($result)){
+            $data['data'][] = $row['floor'];
         }
-        
+
         $data['message'] = "";
         $data['success'] = true;    
     }
@@ -3447,30 +3502,70 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
     echoResponse(200, $data);
 });
 
-// get floor list for add plot modal
-$app->post('/get_floor_plotmodal','authenticateUser', function () use ($app) {
+// get plot list for add plot modal
+$app->post('/get_plot_plotmodal','authenticateUser', function () use ($app) {
     
     verifyRequiredParams(array('data'));
     $data_request = json_decode($app->request->post('data'));
-    $plot_no = $data_request->plot_no;
-    $road_no=$data_request->road_no;
+    $old_road_no=isset($data_request->old_road_no)?$data_request->old_road_no:"";
+    $old_plot_no = $data_request->old_plot_no;
+    $road_no=isset($data_request->road_no)?$data_request->road_no:"";
     $estate_id=$data_request->estate_id;
   
     $db = new DbOperation();
     $data = array();
     $data["data"] = array();
 
-    $result_estate=$db->get_ind_estate_data($estate_id);
+    $result_estate=$db->get_ind_estate($estate_id);
+    $plotting_pattern = $result_estate['plotting_pattern'];
 
-    $result=$db->get_floor_plotmodal($result_estate['industrial_estate'],$result_estate['area_id'],$result_estate['taluka'],$plot_no,$road_no);
+    $result=$db->get_plot_plotmodal($old_road_no,$old_plot_no,$road_no,$plotting_pattern,$estate_id);
       
-    if(count($result)>0){
-        foreach($result as $floor_no){
-            if($floor_no=='0'){
+    if(mysqli_num_rows($result)>0){
+        $temp = array();
+        while ($row = $result->fetch_assoc()) {
+            foreach($row as $key => $value){
+                $temp["plot_no"] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Result Found";
+        $data['success'] = true;
+    }
+
+    echoResponse(200, $data);
+});
+
+// get floor list for add plot modal
+$app->post('/get_floor_plotmodal','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $plot_no = $data_request->plot_no;
+    $road_no=isset($data_request->road_no)?$data_request->road_no:"";
+    $estate_id=$data_request->estate_id;
+  
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+
+    $result_estate=$db->get_ind_estate($estate_id);
+    $plotting_pattern = $result_estate['plotting_pattern'];
+
+    $result=$db->get_floor_plotmodal($plot_no,$road_no,$plotting_pattern,$estate_id);
+      
+    if(mysqli_num_rows($result)>0){
+        while($row = mysqli_fetch_array($result)){
+            if($row['floor']=='0'){
                 $data['data'][] = "Ground Floor";
             }
             else{
-                $data['data'][] = $floor_no;
+                $data['data'][] = $row['floor'];
             }
         }
         $data['message'] = "";
@@ -3510,9 +3605,17 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
 
     $res_pattern=$db->get_ind_estate($estate_id);
 
-    $res_company_plot=$db->get_pr_company_plot($res_pattern['plotting_pattern'],$estate_id,$plot_no,$floor,$road_no);
+    $result_company_plot=$db->get_pr_company_plot($res_pattern['plotting_pattern'],$estate_id,$plot_no,$floor,$road_no);
 
-    $pr_company_plot_id = $res_company_plot['pid'];
+    // if floor already created then update otherwise insert
+    if(mysqli_num_rows($result_company_plot)){
+        $res_company_plot = $result_company_plot->fetch_assoc();
+        $pr_company_plot_id = $res_company_plot['pid'];
+        $next_status = 'update';
+    }
+    else{
+        $next_status = 'insert';
+    }
 
     if($plot_confirmation=='Same Company'){  // Same Company As Ground
       
@@ -3564,7 +3667,13 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
 
       $plot_id = $last_plot_id+1;
 
-      $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id);
+        // insert or update in pr_company_plot
+        if($next_status=='update'){
+            $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id);
+        }
+        else{
+            $result_company_plot=$db->company_plot_insert($plot_no,$floor,$road_no,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id);
+        }
     }
     else if($plot_confirmation=='Same Owner But Different Company'){   // Same Owner As Ground But Different Company
         $res_rawdata=$db->get_rawdata($id);
@@ -3638,8 +3747,13 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
         // insert in pr_company_details
         $result_companydetail_id=$db->company_details_insert($post_fields->Contact_Name,$post_fields->Mobile_No,$result_estate["state_id"], $result_estate["city_id"], $result_estate["taluka"], $result_estate["area_id"], $result_estate["industrial_estate"],$estate_id,$user_id,$result_rawdata_id);
 
-        // insert in pr_company_plot 
-        $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id);
+        // insert or update in pr_company_plot
+        if($next_status=='update'){
+            $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$result_companydetail_id,$pr_company_plot_id,$user_id);
+        }
+        else if($next_status=='insert'){
+            $result_company_plot=$db->company_plot_insert($plot_no,$floor,$road_no,$plot_id,$estate_id,$user_id,$plot_status,$result_companydetail_id);
+        }
 
 
         // dropdowns
@@ -3722,25 +3836,28 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
         array_push($data['data']['Refill Data'], $refill_data);
     }
 
-    if(mysqli_num_rows($result_plot_search)>0){
-      $delete_id="";
-      while($plot_search_res = mysqli_fetch_array($result_plot_search)){
-        $row_data_search=json_decode($plot_search_res["raw_data"]);
+    // to get blank json data in tbl_tdrawdata and delete it
+    if($next_status=='update'){
+        if(mysqli_num_rows($result_plot_search)>0){
+          $delete_id="";
+          while($plot_search_res = mysqli_fetch_array($result_plot_search)){
+            $row_data_search=json_decode($plot_search_res["raw_data"]);
 
-        $plot_details = $row_data_search->plot_details;
-        foreach ($plot_details as $pd) {
-          if($pd->Plot_No==$plot_no && $pd->Floor==$floor){
-            $delete_id = $plot_search_res['id'];
-            break;
+            $plot_details = $row_data_search->plot_details;
+            foreach ($plot_details as $pd) {
+              if($pd->Plot_No==$plot_no && $pd->Floor==$floor){
+                $delete_id = $plot_search_res['id'];
+                break;
+              }
+            }
+          }
+          if($delete_id!=""){
+            $result_del=$db->delete_tbl_tdrawdata($delete_id);
           }
         }
-      }
-      if($delete_id!=""){
-        $result_del=$db->delete_tbl_tdrawdata($delete_id);
-      }
     }
 
-    if($result_company_plot>0){
+    if($result_company_plot){
         $data['message'] = "Data added successfully";
         $data['success'] = true;
     }
@@ -3771,17 +3888,7 @@ $app->post('/get_filter','authenticateUser', function () use ($app) {
         while ($row = $result->fetch_assoc()) {
             $temp = array();
             foreach ($row as $key => $value) {
-                if($value=='visit_pending'){
-                    $temp['filter'] = 'Visit Pending';
-                } else if($value=='open_plot'){
-                    $temp['filter'] = 'Open Plot';
-                } else if($value=='positive'){
-                    $temp['filter'] = 'Positive';
-                } else if($value=='negative'){
-                    $temp['filter'] = 'Negative';
-                } else if($value=='existing_client'){
-                    $temp['filter'] = 'Existing Client';
-                } 
+                $temp['filter'] = ucfirst(str_replace("_"," ",$value)); 
             }
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data'], $temp);
@@ -3940,6 +4047,164 @@ $app->post('/add_followup','authenticateUser', function () use ($app) {
         $data['success'] = false;
     }
 
+    echoResponse(200, $data);
+});
+
+// get state list 
+$app->post('/get_state_list','authenticateUser', function () use ($app) {
+    
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_state_list();
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// get city list 
+$app->post('/get_city_list','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $state = $data_request->state;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_city_list($state);
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp['city'] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// get designation list 
+$app->post('/get_designation_list','authenticateUser', function () use ($app) {
+    
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_designation_list();
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// get vertical list
+$app->post('/get_vertical_list','authenticateUser', function () use ($app) {
+    
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_vertical_list();
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// get city list 
+$app->post('/get_service_name_list','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $vertical_id = $data_request->vertical_id;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_service_name_list($vertical_id);
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
     echoResponse(200, $data);
 });
 

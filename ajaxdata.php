@@ -393,7 +393,7 @@ if(isset($_REQUEST['action']))
 			$stmt_floor = $obj->con1->prepare("SELECT all_numbers.number FROM ( SELECT 0 AS number UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and company_id is NOT null ) AS existing_numbers ON all_numbers.number = existing_numbers.floor WHERE existing_numbers.floor IS NULL order by abs(number)");
 		}
 		else if($plotting_pattern=='Road'){
-			$stmt_floor = $obj->con1->prepare("SELECT all_numbers.number FROM ( SELECT 0 AS number UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and road='".$road_no."' and company_id is NOT null ) AS existing_numbers ON all_numbers.number = existing_numbers.floor WHERE existing_numbers.floor IS NULL order by abs(number)");
+			$stmt_floor = $obj->con1->prepare("SELECT all_numbers.number FROM ( SELECT 0 AS number UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and road_no='".$road_no."' and company_id is NOT null ) AS existing_numbers ON all_numbers.number = existing_numbers.floor WHERE existing_numbers.floor IS NULL order by abs(number)");
 		}
 		
 		$stmt_floor->execute();
@@ -723,7 +723,6 @@ if(isset($_REQUEST['action']))
 	  		$html.='<option value="'.$filter["assign_estate_status"].'">'.ucfirst(str_replace("_"," ",$filter["assign_estate_status"])).'</option>';	
 	  	}
 
-	  	//echo $html.'@@@@@'.$plotting_pattern;
 	  	echo $html;
 	}
 
@@ -732,8 +731,6 @@ if(isset($_REQUEST['action']))
 	  	$html="";
 	  	$estate_id=$_REQUEST['estate_id'];
 	  	$filter=$_REQUEST['filter'];
-
-	  	//echo "SELECT plotting_pattern FROM pr_add_industrialestate_details where a1.industrial_estate_id=".$estate_id;
 
 	  	$stmt_estate = $obj->con1->prepare("SELECT plotting_pattern FROM pr_add_industrialestate_details where industrial_estate_id=?");
 	  	$stmt_estate->bind_param("i",$estate_id);
@@ -811,6 +808,7 @@ if(isset($_REQUEST['action']))
 		}
 
 		$stmt_plot->bind_param("is",$estate_id,$road_no);
+		$stmt_plot->execute();
 		$plot_res = $stmt_plot->get_result();
 		$stmt_plot->close();
 
@@ -910,6 +908,7 @@ if(isset($_REQUEST['action']))
 		$stmt_estate->close();
 
 		if($plot_no!="" && $floor_no!=""){
+
 			// get common values from json from table tbl_tdrawdata
 			$stmt = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%' and raw_data->'$.plot_details[*].Floor' like '%".$floor_no."%'");
 			$stmt->execute();
@@ -933,16 +932,18 @@ if(isset($_REQUEST['action']))
 
 			$constitution = "";
 			$image = "";
+			$pr_comp_status = "";
 
 			// get image and contitution from pr_company_details
 			if($pr_company_plot["company_id"]!="" || $pr_company_plot["company_id"]!=null){
-				$stmt_company_details = $obj->con1->prepare("SELECT image, constitution FROM `pr_company_details` where cid=?");
+				$stmt_company_details = $obj->con1->prepare("SELECT image, constitution,status FROM `pr_company_details` where cid=?");
 				$stmt_company_details->bind_param("i",$pr_company_plot["company_id"]);
 				$stmt_company_details->execute();
 				$pr_company_details = $stmt_company_details->get_result()->fetch_assoc();
 				$stmt_company_details->close();
 				$constitution = $pr_company_details["constitution"];
 				$image = $pr_company_details["image"];
+				$pr_comp_status = $pr_company_details["status"];
 			}
 
 
@@ -950,12 +951,12 @@ if(isset($_REQUEST['action']))
 				$row_data = json_decode($plot["raw_data"]);
 				$post_fields = $row_data->post_fields;
 
-				if($post_fields->IndustrialEstate==$estate_res['industrial_estate'] && $post_fields->Taluka==$estate_res['taluka']){
+				if($post_fields->IndustrialEstate==$estate_res['industrial_estate'] && $post_fields->Taluka==$estate_res['taluka'] && $post_fields->Area==$estate_res['area_id']){
 
 					$plot_details = $row_data->plot_details;
 
 					foreach ($plot_details as $pd) {
-						if($pd->Floor==$floor_no && $pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
+						if($pd->Floor==$floor_no && $pd->Plot_No==$plot_no  && $pd->Road_No==$road_no){
 							
 							$reason = "";
 							$status = "";
@@ -977,6 +978,9 @@ if(isset($_REQUEST['action']))
 								else{
 									$status = "Existing Client";	
 								}
+							}
+							else{
+								$status = ($pr_comp_status!=null)?$pr_comp_status:"";
 							}
 
 							if($status=='Negative'){
@@ -1155,6 +1159,7 @@ if(isset($_REQUEST['action']))
 		}
 		else if($plotting_pattern=="Series"){
 			
+			// to all plots - plot selected
 			//$stmt_plot_list=$obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id='".$estate_id."' and company_id IS NULL and plot_no!='".$plot_no."' ");
 			$stmt_plot_list=$obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id='".$estate_id."' and plot_no!='".$plot_no."' order by abs(plot_no)");
 			$stmt_plot_list->execute();
@@ -1197,7 +1202,7 @@ if(isset($_REQUEST['action']))
 
 			<div class="mb-3">
 			<label class="form-label" for="basic-default-fullname">Road No.</label>
-			<select name="road_no_plotmodal" id="road_no_plotmodal" class="form-control" onchange="get_plotno_plotmodal(this.value,estateid_plotmodal.value)">
+			<select name="road_no_plotmodal" id="road_no_plotmodal" class="form-control" onchange="get_plotno_plotmodal(this.value,estateid_plotmodal.value,'.$plot_no.','.$road_no.')">
 			<option value="">Select Road No.</option>';
 			while($road = mysqli_fetch_array($road_res)){
 				$html.='<option value="'.$road["road_no"].'">'.$road["road_no"].'</option>';
@@ -1275,30 +1280,16 @@ if(isset($_REQUEST['action']))
 		$plotting_pattern = $_COOKIE['plottingpattern_company'];
 		$pr_company_detail_id = $_REQUEST['pr_company_detail_id'];
 
-		$floors_inuse = array();
-		$all_floors = array(0,1,2,3,4,5,6,7,8,9,10);
-
 		if($plotting_pattern=='Series'){
-			$stmt = $obj->con1->prepare("SELECT * FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_no=?");
-			$stmt->bind_param("is",$estate_id,$plot_no);
+			$stmt = $obj->con1->prepare("SELECT all_numbers.floor FROM ( SELECT 0 AS floor UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT DISTINCT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' ) AS plots ON all_numbers.floor = plots.floor WHERE plots.floor IS NULL");
 		}
 		else if($plotting_pattern=='Road'){
-			$stmt = $obj->con1->prepare("SELECT * FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_no=? and road_no=?");
-			$stmt->bind_param("iss",$estate_id,$plot_no,$road_no);
+			$stmt = $obj->con1->prepare("SELECT all_numbers.floor FROM ( SELECT 0 AS floor UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT DISTINCT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and road_no='".$road_no."' ) AS plots ON all_numbers.floor = plots.floor WHERE plots.floor IS NULL");
 		}
 
 		$stmt->execute();
 		$data = $stmt->get_result();
 		$stmt->close();
-
-		while($floor=mysqli_fetch_array($data)){
-			array_push($floors_inuse, $floor["floor"]);
-		}
-
-		$result=array_udiff($all_floors,$floors_inuse,function ($a,$b){
-			if ($a==$b){ return 0; }
-			return ($a>$b)?1:-1;
-		});
 
 		$html = '<div><form method="post" enctype="multipart/form-data">
 		<div class="modal-body"><div class="row">
@@ -1334,12 +1325,12 @@ if(isset($_REQUEST['action']))
 		<label class="form-label" for="basic-default-fullname">Floor No.</label>
 		<select name="floor_floormodal" id="floor_floormodal" class="form-control" required>
 		<option value="">Select Floor No.</option>';
-		foreach ($result as $floor_no){
-			if($floor_no=='0'){
-				$html.='<option value="'.$floor_no.'">Ground Floor</option>';
+		while($floor=mysqli_fetch_array($data)){
+			if($floor['floor']=='0'){
+				$html.='<option value="'.$floor['floor'].'">Ground Floor</option>';
 			}
 			else{
-				$html.='<option value="'.$floor_no.'">'.$floor_no.'</option>';
+				$html.='<option value="'.$floor['floor'].'">'.$floor['floor'].'</option>';
 			}
 		}
 		$html.='</select>
@@ -1393,8 +1384,11 @@ if(isset($_REQUEST['action']))
 		$html="";
 		$road_no=$_REQUEST['road_no'];
 		$estate_id=$_REQUEST['estate_id'];
+		$not_road_no=$_REQUEST['not_road_no'];
+		$not_plot_no=$_REQUEST['not_plot_no'];
 
-		$stmt_plot_list=$obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id='".$estate_id."' and road_no='".$road_no."' order by abs(plot_no)");
+		// to all plots - plot selected
+		$stmt_plot_list=$obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id='".$estate_id."' AND road_no='".$road_no."' AND (road_no!='".$not_road_no."' OR plot_no!='".$not_plot_no."') ORDER BY ABS(plot_no)");
 		$stmt_plot_list->execute();
 		$plot_list_result = $stmt_plot_list->get_result();
 		$stmt_plot_list->close();
