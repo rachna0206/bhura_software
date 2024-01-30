@@ -3888,7 +3888,7 @@ $app->post('/get_filter','authenticateUser', function () use ($app) {
         while ($row = $result->fetch_assoc()) {
             $temp = array();
             foreach ($row as $key => $value) {
-                $temp['filter'] = ucfirst(str_replace("_"," ",$value)); 
+                $temp['filter'] = ucwords(str_replace("_"," ",$value)); 
             }
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data'], $temp);
