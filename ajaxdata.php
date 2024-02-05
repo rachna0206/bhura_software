@@ -711,8 +711,7 @@ if(isset($_REQUEST['action']))
 	  	$html="";
 	  	$estate_id=$_REQUEST['estate_id'];
 
-			// fetch assigned estate filter
-
+		// fetch assigned estate filter
 	  	$stmt_filter = $obj->con1->prepare("SELECT * FROM `pr_emp_estate` where industrial_estate_id=? and employee_id=?");
 	  	$stmt_filter->bind_param("ii",$estate_id,$_SESSION["id"]);
 	  	$stmt_filter->execute();
@@ -1014,7 +1013,10 @@ if(isset($_REQUEST['action']))
 								"Remarks" => $post_fields->Remarks,
 								"Image" => $image,
 								"Company_detail_id" => $pr_company_plot["company_id"],
-								"Company_plot_id" => $pr_company_plot["pid"]
+								"Company_plot_id" => $pr_company_plot["pid"],
+                                "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
+                                "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
+                                "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
 							);
 							break;
 						}
@@ -1045,6 +1047,9 @@ if(isset($_REQUEST['action']))
 				"Image" => "",
 				"Company_detail_id" => "",
 				"Company_plot_id" => "",
+				"Loan_Sanction" => "",
+                "Completion_Date" => "",
+                "Existing_client_status" => ""
 			);
 		}
 

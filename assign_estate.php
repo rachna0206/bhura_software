@@ -36,13 +36,14 @@ if(isset($_REQUEST['btn_modal_update']))
     $stmt_del_filter->bind_param("i",$industrial_estate_id);
     $Resp_est=$stmt_del_filter->execute();
 
-    foreach($_REQUEST['filter'] as $filter){
+    foreach($_REQUEST['e'] as $emp_id){
+      foreach($_REQUEST['filter'] as $filter){
         // insert into pr_emp_estate
         $stmt_est = $obj->con1->prepare("INSERT INTO `pr_emp_estate`(`employee_id`, `industrial_estate_id`, `assign_estate_status`) VALUES (?,?,?)");
         $stmt_est->bind_param("iis",$emp_id,$industrial_estate_id,$filter);
         $Resp_est=$stmt_est->execute();
-
       }
+    }
 
     if(!$Resp)
     {
@@ -73,6 +74,11 @@ if(isset($_REQUEST["flg"]) && $_REQUEST["flg"]=="del")
   {
     $stmt_del = $obj->con1->prepare("delete from assign_estate where id='".$_REQUEST["n_id"]."'");
   	$Resp=$stmt_del->execute();
+
+    $stmt_del_filter = $obj->con1->prepare("delete from pr_emp_estate where industrial_estate_id=? and employee_id=?");
+    $stmt_del_filter->bind_param("ii",$_REQUEST["estate_id"],$_REQUEST["emp_id"]);
+    $Resp_est=$stmt_del_filter->execute();
+
     if(!$Resp)
     {
       throw new Exception("Problem in deleting! ". strtok($obj->con1-> error,  '('));
@@ -210,7 +216,7 @@ if(isset($_COOKIE["msg"]) )
               <td><?php echo date('d-m-Y',strtotime($data["end_dt"])) ?></td>
               <td>
               	<a href="javascript:editdata('<?php echo $data["id"]?>','<?php echo $data["employee_id"]?>','<?php echo $data["state_id"]?>','<?php echo $data["city_id"]?>','<?php echo $data["taluka"]?>','<?php echo $data["area_id"]?>','<?php echo $data["industrial_estate"]?>','<?php echo $data["industrial_estate_id"]?>','<?php echo base64_encode($data["start_dt"])?>','<?php echo base64_encode($data["end_dt"])?>');"><i class="bx bx-edit-alt me-1"></i> </a>
-                <a href="javascript:deletedata('<?php echo $data["id"]?>');"><i class="bx bx-trash me-1"></i> </a>
+                <a href="javascript:deletedata('<?php echo $data["id"]?>','<?php echo $data["employee_id"]?>','<?php echo $data["industrial_estate_id"]?>');"><i class="bx bx-trash me-1"></i> </a>
                 <a href="javascript:viewdata('<?php echo $data["id"]?>','<?php echo $data["employee_id"]?>','<?php echo $data["state_id"]?>','<?php echo $data["city_id"]?>','<?php echo $data["taluka"]?>','<?php echo $data["area_id"]?>','<?php echo $data["industrial_estate"]?>','<?php echo $data["industrial_estate_id"]?>','<?php echo base64_encode($data["start_dt"])?>','<?php echo base64_encode($data["end_dt"])?>');">View</a> 
               </td>
             </tr>
@@ -253,9 +259,9 @@ if(isset($_COOKIE["msg"]) )
     $('.js-example-basic-multiple').select2();
   });
   
-  function deletedata(id,img) {
+  function deletedata(id,emp_id,estate_id) {
     if(confirm("Are you sure to DELETE data?")) {
-        var loc = "assign_estate.php?flg=del&n_id="+id;
+        var loc = "assign_estate.php?flg=del&n_id="+id+"&emp_id="+emp_id+"&estate_id="+estate_id;
         window.location = loc;
     }
   }

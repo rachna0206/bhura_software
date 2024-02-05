@@ -1634,7 +1634,6 @@ if(isset($_COOKIE["msg"]) )
         data: "estate_id="+estate_id,
         cache: false,
         success: function(result){
-          
           //var data = result.split("@@@@@");          
           $('#filter').html('');
           //$('#filter').append(data[0]);
@@ -1796,10 +1795,27 @@ if(isset($_COOKIE["msg"]) )
         if(res['Status']=="Existing Client"){
          $('#existing_client').prop("checked","checked");
          $('#badlead_reasons_div').attr("hidden",true); 
+         if(res['Existing_client_status']=="positive for expansion"){
+          $('#positive_expansion').prop("checked","checked");
+         }  
+         else if(res['Existing_client_status']=="negative for expansion"){
+          $('#negative_expansion').prop("checked","checked");
+         }
         }
         else if(res['Status']=="Positive"){
          $('#positive').prop("checked","checked"); 
          $('#badlead_reasons_div').attr("hidden",true);
+                
+         if(res['Loan_Sanction']=="Want to Apply?"){
+          $('#apply').prop("checked","checked");
+         }
+         else if(res['Loan_Sanction']=="Loan Under Process"){
+          $('#under_process').prop("checked","checked");
+         }
+         else if(res['Loan_Sanction']=="Sactioned Loan"){
+          $('#sanctioned').prop("checked","checked");
+         }
+         $('#completion_date').val(res['Completion_Date']);
         }
         else if(res['Status']=="Negative"){
          $('#negative').prop("checked","checked");

@@ -116,7 +116,9 @@ if(isset($_COOKIE["msg"]) )
 
                 //$stmt_list = $obj->con1->prepare("SELECT i1.id as estate_id, tbl1.id as rawdata_id, tbl1.state, tbl1.city, tbl1.taluka, tbl1.area, tbl1.ind_estate, tbl1.firm_name, tbl1.factory_address, (SELECT CASE WHEN stage='lead' THEN 'Positive' WHEN stage='badlead' THEN 'Negative' ELSE 'Existing Client' END stage1  FROM `tbl_tdrawassign` where inq_id=tbl1.id order by id desc limit 1) as stage1, (SELECT stage FROM `tbl_tdrawassign` where inq_id=tbl1.id order by id desc limit 1) as stage from (SELECT id, json_unquote(raw_data->'$.post_fields.state') as state,json_unquote(raw_data->'$.post_fields.city') as city, json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Factory_Address') as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='') tbl1, tbl_industrial_estate i1 where tbl1.taluka=i1.taluka and tbl1.area=i1.area_id and tbl1.ind_estate=i1.industrial_estate and tbl1.id not in (SELECT rawdata_id from pr_company_details)");
 
-                $stmt_list = $obj->con1->prepare("SELECT i1.id as estate_id, tbl1.id as rawdata_id, tbl1.state, tbl1.city, tbl1.taluka, tbl1.area, tbl1.ind_estate, tbl1.firm_name, tbl1.factory_address from (SELECT id, json_unquote(raw_data->'$.post_fields.state') as state,json_unquote(raw_data->'$.post_fields.city') as city, json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Factory_Address') as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='') tbl1, tbl_industrial_estate i1 where tbl1.taluka=i1.taluka and tbl1.area=i1.area_id and tbl1.ind_estate=i1.industrial_estate and tbl1.id not in (SELECT rawdata_id from pr_company_details)");
+                /*$stmt_list = $obj->con1->prepare("SELECT i1.id as estate_id, tbl1.id as rawdata_id, tbl1.state, tbl1.city, tbl1.taluka, tbl1.area, tbl1.ind_estate, tbl1.firm_name, tbl1.factory_address from (SELECT id, json_unquote(raw_data->'$.post_fields.state') as state,json_unquote(raw_data->'$.post_fields.city') as city, json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Factory_Address') as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='') tbl1, tbl_industrial_estate i1 where tbl1.taluka=i1.taluka and tbl1.area=i1.area_id and tbl1.ind_estate=i1.industrial_estate and tbl1.id not in (SELECT rawdata_id from pr_company_details)");*/
+
+                $stmt_list = $obj->con1->prepare("SELECT td.id as rawdata_id, json_unquote(td.raw_data->'$.post_fields.state') as state,json_unquote(td.raw_data->'$.post_fields.city') as city, json_unquote(td.raw_data->'$.post_fields.Taluka') as taluka, json_unquote(td.raw_data->'$.post_fields.Area') as area, json_unquote(td.raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(td.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(td.raw_data->'$.post_fields.Factory_Address') as factory_address,(SELECT stage from tbl_tdrawassign where inq_id=td.id order by id desc limit 1) as stage FROM tbl_tdrawdata td WHERE  JSON_CONTAINS_PATH(td.raw_data, 'one', '$.plot_details') = 0 and td.raw_data->'$.post_fields.IndustrialEstate'!='' and td.id not in (SELECT rawdata_id from pr_company_details)");
               }
               else{
                 //$stmt_list = $obj->con1->prepare("SELECT i1.id as estate_id, tbl1.id as rawdata_id, tbl1.state, tbl1.city, tbl1.taluka, tbl1.area, tbl1.ind_estate, tbl1.firm_name, tbl1.factory_address from (SELECT id, json_unquote(raw_data->'$.post_fields.state') as state,json_unquote(raw_data->'$.post_fields.city') as city, json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Factory_Address') as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='') tbl1, tbl_industrial_estate i1, assign_estate a1 where tbl1.taluka=i1.taluka and tbl1.area=i1.area_id and tbl1.ind_estate=i1.industrial_estate and a1.industrial_estate_id=i1.id and a1.employee_id=? and a1.start_dt<=curdate() and a1.end_dt>=curdate() and a1.action='company_entry' and tbl1.id not in (SELECT rawdata_id from pr_company_details)");
@@ -131,7 +133,7 @@ if(isset($_COOKIE["msg"]) )
 
               while($data=mysqli_fetch_array($result))
               {
-                $stage1=$data["stage1"];
+                /*$stage1=$data["stage1"];
 
 
                 if(in_array($user_id, $admin))
@@ -162,7 +164,7 @@ if(isset($_COOKIE["msg"]) )
                   $stmt_stage->close();
                   $emp_name=$stage_result["emp_name"];
 
-                }
+                }*/
 
             ?>
 
@@ -172,11 +174,25 @@ if(isset($_COOKIE["msg"]) )
               <td><?php echo $data["area"] ?></td>
               <td><?php echo $data["ind_estate"] ?></td>
               <td><?php echo $data["firm_name"] ?></td>
-              <td><?php echo $emp_name ?></td>
-              <td><?php echo $data["factory_address"] ?></td>
-              <td><?php echo $stage1 ?></td>
               <td>
-                <a href="javascript:editdata('<?php echo $data["estate_id"]?>','<?php echo $data["rawdata_id"]?>','<?php echo base64_encode($data["state"]) ?>','<?php echo base64_encode($data["city"]) ?>','<?php echo base64_encode($data["taluka"]) ?>','<?php echo base64_encode($data["area"]) ?>','<?php echo base64_encode($data["ind_estate"]) ?>','<?php echo base64_encode($data["firm_name"]) ?>','<?php echo $user_id ?>','<?php echo base64_encode($data["stage"]) ?>','<?php echo base64_encode($data["factory_address"]) ?>');"><i class="bx bx-edit-alt me-1"></i> </a>
+                <!-- <?php echo $emp_name ?> -->
+                  
+                </td>
+              <td><?php echo $data["factory_address"] ?></td>
+              <td><?php 
+                  if($data["stage"]=='lead'){
+                    echo 'Positive';
+                  }
+                  else if($data["stage"]=='badlead'){
+                    echo 'Negative';
+                  }
+                  else{
+                    echo 'Existing Client';
+                  }
+               ?></td>
+              <!-- <td><?php echo $stage1 ?></td> -->
+              <td>
+                <a href="javascript:editdata('<?php echo $data["rawdata_id"]?>','<?php echo base64_encode($data["state"]) ?>','<?php echo base64_encode($data["city"]) ?>','<?php echo base64_encode($data["taluka"]) ?>','<?php echo base64_encode($data["area"]) ?>','<?php echo base64_encode($data["ind_estate"]) ?>','<?php echo base64_encode($data["firm_name"]) ?>','<?php echo $user_id ?>','<?php echo base64_encode($data["stage"]) ?>','<?php echo base64_encode($data["factory_address"]) ?>');"><i class="bx bx-edit-alt me-1"></i> </a>
               </td>
             </tr>
             <?php
@@ -195,9 +211,9 @@ if(isset($_COOKIE["msg"]) )
   <!-- / Content -->
 <script type="text/javascript">
 
-  function editdata(estate_id,rawdata_id,state,city,taluka,area,ind_estate,firm_name,user_id,status,factory_address) {
+  function editdata(rawdata_id,state,city,taluka,area,ind_estate,firm_name,user_id,status,factory_address) {
     //cookie -> estate_id, rawdata_id
-    createCookie('estateid_comp_addplot', estate_id);
+    /*createCookie('estateid_comp_addplot', estate_id);*/
     createCookie('rawdataid_comp_addplot', rawdata_id);
     console.log("add="+atob(factory_address));
    

@@ -1008,7 +1008,7 @@ public function get_filter($estate_id,$emp_id)
 // get lead company list
 public function lead_company_list($userid)
 {
-    $stmt_company_list = $this->con->prepare("SELECT r1.inq_id, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, json_unquote(c1.raw_data->'$.post_fields.Area') as area from (select MAX(t2.id) as r_id from tbl_tdrawassign t1, tbl_tdrawassign t2 where t1.id=t2.id GROUP BY t2.inq_id) as tbl1, tbl_tdrawassign r1, tbl_tdrawdata c1 where tbl1.r_id=r1.id and r1.inq_id=c1.id and r1.stage='lead' and r1.user_id=?");
+    $stmt_company_list = $this->con->prepare("SELECT r1.inq_id, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, json_unquote(c1.raw_data->'$.post_fields.Area') as area, ifnull((SELECT CASE WHEN DATE(reminder_dt)=CURDATE() THEN 'yes' ELSE 'no' END status FROM `tbl_tdreminder` where inq_id=r1.inq_id order by id desc limit 1),'no') as status from (select MAX(t2.id) as r_id from tbl_tdrawassign t1, tbl_tdrawassign t2 where t1.id=t2.id GROUP BY t2.inq_id) as tbl1, tbl_tdrawassign r1, tbl_tdrawdata c1 where tbl1.r_id=r1.id and r1.inq_id=c1.id and r1.stage='lead' and r1.user_id=?");
     $stmt_company_list->bind_param("i",$userid);
     $stmt_company_list->execute();
     $company_result = $stmt_company_list->get_result();
@@ -1019,7 +1019,7 @@ public function lead_company_list($userid)
 // get follow ups list for company
 public function followups_list($inq_id)
 {
-    $stmt_followup_list = $this->con->prepare("SELECT u1.name, f1.followup_text, f1.followup_source as source, f1.followup_date, date_format(f1.tdfollowup_ts,'%h:%i %p') as followup_time FROM tbl_tdfollowup f1, tbl_users u1 WHERE f1.user_id=u1.id and inq_id=?");
+    $stmt_followup_list = $this->con->prepare("SELECT f1.id, u1.name, f1.followup_text, f1.followup_source as source, f1.followup_date, date_format(f1.tdfollowup_ts,'%h:%i %p') as followup_time FROM tbl_tdfollowup f1, tbl_users u1 WHERE f1.user_id=u1.id and inq_id=? order by f1.tdfollowup_ts DESC;");
     $stmt_followup_list->bind_param("i",$inq_id);
     $stmt_followup_list->execute();
     $followup_result = $stmt_followup_list->get_result();
