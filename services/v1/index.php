@@ -3918,7 +3918,7 @@ $app->post('/followups_list','authenticateUser', function () use ($app) {
 
         foreach ($organizedData as $date => $entries) {
             $data['data'][] = [
-                'followup_date' => $date,
+                'followup_date' => date('d-m-Y',strtotime($date)),
                 'entries' => $entries,
             ];
         }
