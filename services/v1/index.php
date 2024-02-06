@@ -3122,7 +3122,7 @@ $app->post('/add_additional_plot','authenticateUser', function () use ($app) {
         $data['message'] = "An error occurred! Data not inserted";
         $data['success'] = false;
     }
-    echo "response = ".$resp_company_plot;
+   
     if($resp_company_plot)
     {
         $data['message'] = "Data added successfully";
