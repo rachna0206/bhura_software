@@ -2353,7 +2353,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
     $plot_no=$data_request->plot_no;
     $road_no=isset($data_request->road_no)?$data_request->road_no:"";
 
-    $floor_no=($floor_no=="Ground Floor" || $floor_no=="")?"0":$floor_no;
+    $floor_no=($floor_no=="Ground Floor")?"0":$floor_no;
   
     $db = new DbOperation();
     $data = array();
@@ -2363,83 +2363,154 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
    
     if($plot_no!="" && $floor_no!="")
     {
-        // get common values from json from table tbl_tdrawdata
-        $res_company=$db->get_company_details($result_estate['taluka'],$result_estate['industrial_estate'],$result_estate['area_id'],$plot_no,$floor_no,$road_no);
+        // get plot details from pr_company_plots
+        $res_pattern=$db->get_ind_estate($estate_id);
 
-        if(mysqli_num_rows($res_company)>0){
-            // get plot details from pr_company_plots
-            $res_pattern=$db->get_ind_estate($estate_id);
+        $constitution = "";
+        $image = "";
+        $pr_comp_status = "";
+/*
+        print_r($res_pattern);
 
-            $constitution = "";
-            $image = "";
-            $pr_comp_status = "";
+        echo "plotting pattern = ".$res_pattern['plotting_pattern'];
+*/
+        $res_company_plot=$db->get_pr_company_details($res_pattern['plotting_pattern'],$estate_id,$plot_no,$floor_no,$road_no);
+        
+        if($res_company_plot){
+            $pr_comp_status = $res_company_plot["status"];
 
-            $result_company_plot=$db->get_pr_company_plot($res_pattern['plotting_pattern'],$estate_id,$plot_no,$floor_no,$road_no);
-
-            $res_company_plot=$result_company_plot->fetch_assoc();
-
-            // get image and contitution from pr_company_details
-            if($res_company_plot["company_id"]!="" || $res_company_plot["company_id"]!=null){
-                $res_company_details=$db->get_pr_company_details($res_company_plot["company_id"]);
-
-                $image = $res_company_details['image'];
-                $constitution = $res_company_details['constitution']; 
-                $pr_comp_status = $res_company_details['status'];
-            }
-
-            while($plot = mysqli_fetch_array($res_company)){
+            if($res_company_plot["rawdata_id"]!="" || $res_company_plot["rawdata_id"]!=null){
+                $plot=$db->get_rawdata($res_company_plot["rawdata_id"]);
                 $row_data = json_decode($plot["raw_data"]);
                 $post_fields = $row_data->post_fields;
 
-                if($post_fields->IndustrialEstate==$result_estate['industrial_estate'] && $post_fields->Taluka==$result_estate['taluka'] && $post_fields->Area==$result_estate['area_id']){
+                $reason = "";
+                $status = "";
 
-                    $plot_details = $row_data->plot_details;
+                // get company status (positive/negative/existing) from tbl_tdrawassign
+                $rawassign_status = $db->get_tbl_tdrawassign($plot['id']);
+                if(mysqli_num_rows($rawassign_status)>0){
+                    $status_res = mysqli_fetch_array($rawassign_status);
+                    if($status_res['stage']=="lead"){
+                        $status = "Positive";   
+                    }
+                    else if($status_res['stage']=="badlead"){
+                        $status = "Negative";
+                    }
+                    else{
+                        $status = "Existing Client";
+                    }
+                }
+                else{
+                    $status = ($pr_comp_status!=null)?$pr_comp_status:"";
+                }
 
-                    foreach ($plot_details as $pd) {
-                        if($pd->Floor==$floor_no && $pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
-                            
-                            $reason = "";
-                            $status = "";
+                if($status=='Negative'){
+                    $reason = $db->get_badlead_reason($plot['id']);
+                }
 
-                            // get company status (positive/negative/existing) from tbl_tdrawassign
-                            $rawassign_status = $db->get_tbl_tdrawassign($plot['id']);
+                $details = Array (
+                    "Id" => $plot["id"],
+                    "Plot_Id" => $res_company_plot['plot_id'],
+                    "Road_No" => $road_no,
+                    "IndustrialEstate" => $post_fields->IndustrialEstate,
+                    "Area" => $post_fields->Area,
+                    "Plot_Status" => isset($res_company_plot['plot_status'])?$res_company_plot['plot_status']:"",
+                    "Premise" => $post_fields->Premise,
+                    "GST_No" => $post_fields->GST_No,
+                    "Firm_Name" => $post_fields->Firm_Name,
+                    "Contact_Name" => $post_fields->Contact_Name,
+                    "Mobile_No" => $post_fields->Mobile_No,
+                    "Constitution" => isset($res_company_plot['constitution'])?$res_company_plot['constitution']:"",
+                    "Category" => $post_fields->Category,
+                    "Segment" => $post_fields->Segment,
+                    "Status" => isset($res_company_plot['status'])?$res_company_plot['status']:"",
+                    "Reason" => $reason,
+                    "source" => $post_fields->source,
+                    "Source_Name" => $post_fields->Source_Name,
+                    "Remarks" => $post_fields->Remarks,
+                    "Image" => ($image=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$image,
+                    "Company_detail_id" => $res_company_plot["company_id"],
+                    "Company_plot_id" => $res_company_plot["pid"],
+                    "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
+                    "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
+                    "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
+                );
 
-                            if(mysqli_num_rows($rawassign_status)>0){
-                                $status_res = mysqli_fetch_array($rawassign_status);
-                                if($status_res['stage']=="lead"){
-                                    $status = "Positive";   
-                                }
-                                else if($status_res['stage']=="badlead"){
-                                    $status = "Negative";   
+                if($res_company_plot["pid"]==null && $plot["id"]!=""){
+                    $data['message'] = "hide data";
+                }
+                else{
+                    $data['message'] = "show data";
+                }
+
+                if($post_fields->Contact_Name!="" && $post_fields->Mobile_No!=""){
+                    $data['message_plot'] = "show add plot";
+                }
+                else{
+                    $data['message_plot'] = "hide add plot";
+                }
+
+                $data["data"]=$details;
+
+                $data['success'] = true;
+            }
+            else{
+                // get common values from json from table tbl_tdrawdata
+                $res_company=$db->get_company_details($result_estate['taluka'],$result_estate['industrial_estate'],$result_estate['area_id'],$plot_no,$floor_no,$road_no);
+
+                while($plot = mysqli_fetch_array($res_company)){
+                    $row_data = json_decode($plot["raw_data"]);
+                    $post_fields = $row_data->post_fields;
+
+                    if($post_fields->IndustrialEstate==$result_estate['industrial_estate'] && $post_fields->Taluka==$result_estate['taluka'] && $post_fields->Area==$result_estate['area_id']){
+
+                        $plot_details = $row_data->plot_details;
+
+                        foreach ($plot_details as $pd) {
+                            if($pd->Floor==$floor_no && $pd->Plot_No==$plot_no  && $pd->Road_No==$road_no){
+                                
+                                $reason = "";
+                                $status = "";
+
+                                // get company status (positive/negative/existing) from tbl_tdrawassign
+                                $rawassign_status = $db->get_tbl_tdrawassign($plot['id']);
+                                if(mysqli_num_rows($rawassign_status)>0){
+                                    $status_res = mysqli_fetch_array($status_result);
+                                    if($status_res['stage']=="lead"){
+                                        $status = "Positive";   
+                                    }
+                                    else if($status_res['stage']=="badlead"){
+                                        $status = "Negative";   
+                                    }
+                                    else{
+                                        $status = "Existing Client";    
+                                    }
                                 }
                                 else{
-                                    $status = "Existing Client";    
+                                    $status = ($pr_comp_status!=null)?$pr_comp_status:"";
                                 }
-                            }
-                            else{
-                                $status = ($pr_comp_status!=null)?$pr_comp_status:"";
-                            }
 
-                            if($row_data->Status=='Negative'){
-                                $reason = $db->get_badlead_reason($plot['id']);
-                            }
+                                if($status=='Negative'){
+                                    $reason = $db->get_badlead_reason($plot['id']);
+                                }
 
-                            $details = Array (
+                                $details = Array (
                                     "Id" => $plot["id"],
                                     "Plot_Id" => $res_company_plot['plot_id'],
                                     "Road_No" => $road_no,
                                     "IndustrialEstate" => $post_fields->IndustrialEstate,
                                     "Area" => $post_fields->Area,
-                                    "Plot_Status" => $res_company_plot['plot_status'],
+                                    "Plot_Status" => isset($res_company_plot['plot_status'])?$res_company_plot['plot_status']:"",
                                     "Premise" => $post_fields->Premise,
                                     "GST_No" => $post_fields->GST_No,
                                     "Firm_Name" => $post_fields->Firm_Name,
                                     "Contact_Name" => $post_fields->Contact_Name,
                                     "Mobile_No" => $post_fields->Mobile_No,
-                                    "Constitution" => $constitution,
+                                    "Constitution" => isset($res_company_plot['constitution'])?$res_company_plot['constitution']:"",
                                     "Category" => $post_fields->Category,
-                                    "Segment" => $status,
-                                    "Status" => $row_data->Status,
+                                    "Segment" => $post_fields->Segment,
+                                    "Status" => isset($res_company_plot['status'])?$res_company_plot['status']:"",
                                     "Reason" => $reason,
                                     "source" => $post_fields->source,
                                     "Source_Name" => $post_fields->Source_Name,
@@ -2450,34 +2521,35 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
                                     "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
                                     "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
-                            );
+                                );
+                                
+                                if($res_company_plot["pid"]==null && $plot["id"]!=""){
+                                    $data['message'] = "hide data";
+                                }
+                                else{
+                                    $data['message'] = "show data";
+                                }
 
-                            //if($plot['id']!="" && $plot_id!="" && $post_fields->IndustrialEstate!="" && $post_fields->Area!="" && $plot_status!="" && $post_fields->Premise!="" && $post_fields->GST_No!="" && $post_fields->Firm_Name!="" && $post_fields->Contact_Name!="" && $post_fields->Mobile_No!="" && $row_data->Constitution!="" && $post_fields->Category!="" && $post_fields->Segment!="" && $row_data->Status!="" && $post_fields->source!="" && $post_fields->Source_Name!="" && $post_fields->Remarks!="" && $row_data->Image!=""){
-                            if($res_company_plot["pid"]==null && $plot["id"]!=""){
-                                $data['message'] = "hide data";
-                            }
-                            else{
-                                $data['message'] = "show data";
-                            }
+                                if($post_fields->Contact_Name!="" && $post_fields->Mobile_No!=""){
+                                    $data['message_plot'] = "show add plot";
+                                }
+                                else{
+                                    $data['message_plot'] = "hide add plot";
+                                }
 
-                            if($post_fields->Contact_Name!="" && $post_fields->Mobile_No!=""){
-                                $data['message_plot'] = "show add plot";
-                            }
-                            else{
-                                $data['message_plot'] = "hide add plot";
-                            }
+                                $data["data"]=$details;
 
-                            $data["data"]=$details;
-    
-                            $data['success'] = true;
+                                $data['success'] = true;
+                            }
                         }
                     }
                 }
             }
-        }
+         }
         else{
-            $data["message"]="No Result Found";
-    
+            //$data["message"]="No Result Found";
+            $data['message'] = "hide data";
+            $data['message_plot'] = "hide add plot";
             $data['success'] = false;
         }
     }
@@ -3122,7 +3194,7 @@ $app->post('/add_additional_plot','authenticateUser', function () use ($app) {
         $data['message'] = "An error occurred! Data not inserted";
         $data['success'] = false;
     }
-   
+    
     if($resp_company_plot)
     {
         $data['message'] = "Data added successfully";
@@ -3580,10 +3652,10 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
         $next_status = 'insert';
     }
 
-    if($plot_confirmation=='Same Company'){  // Same Company As Ground
-      
-        $res_rawdata=$db->get_rawdata($id);
+    $res_rawdata=$db->get_rawdata($id);
 
+    if($plot_confirmation=='Same Company'){  // Same Company As Ground
+        // update plot_details section of already existing company
         $row_data=json_decode($res_rawdata["raw_data"]);
         $post_fields = $row_data->post_fields;
 
@@ -3625,10 +3697,31 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
             if($result>0){
             // for pr_visit_count table
             $result_visit_count=$db->pr_visit_count($post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id,$result);
+
+            // to get blank json data in tbl_tdrawdata and delete it
+            if($next_status=='update'){
+                if(mysqli_num_rows($result_plot_search)>0){
+                  $delete_id="";
+                  while($plot_search_res = mysqli_fetch_array($result_plot_search)){
+                    $row_data_search=json_decode($plot_search_res["raw_data"]);
+
+                    $plot_details = $row_data_search->plot_details;
+                    foreach ($plot_details as $pd) {
+                      if($pd->Plot_No==$plot_no && $pd->Floor==$floor){
+                        $delete_id = $plot_search_res['id'];
+                        break;
+                      }
+                    }
+                  }
+                  if($delete_id!=""){
+                    $result_del=$db->delete_tbl_tdrawdata($delete_id);
+                  }
+                }
+            }
           }
         }
 
-      $plot_id = $last_plot_id+1;
+        $plot_id = $last_plot_id+1;
 
         // insert or update in pr_company_plot
         if($next_status=='update'){
@@ -3639,71 +3732,97 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
         }
     }
     else if($plot_confirmation=='Same Owner But Different Company'){   // Same Owner As Ground But Different Company
-        $res_rawdata=$db->get_rawdata($id);
 
         $row_data=json_decode($res_rawdata["raw_data"]);
         $post_fields = $row_data->post_fields;
+        $mobile_no = $post_fields->Mobile_No;
+        $contact_name = $post_fields->Contact_Name;
 
-        $cp = Array (
-            "post_fields" => Array (
-            "source" => "",
-            "Source_Name" => "",
-            "Contact_Name" => $post_fields->Contact_Name,
-            "Mobile_No" => $post_fields->Mobile_No,
-            "Email" => "",
-            "Designation_In_Firm" => "",
-            "Firm_Name" => "",
-            "GST_No" => "",
-            "Type_of_Company" => "",
-            "Category" => "",
-            "Segment" => "",
-            "Premise" => "",
-            "Factory_Address" => "",
-            "state" => $result_estate['state_id'],
-            "city" => $result_estate['city_id'],
-            "Taluka" => $result_estate['taluka'],
-            "Area" => $result_estate['area_id'],
-            "IndustrialEstate" => $result_estate['industrial_estate'],
-            "loan_applied" => "",
-            "Completion_Date" => "",
-            "Term_Loan_Amount" => "",
-            "CC_Loan_Amount" => "",
-            "Under_Process_Bank" => "",
-            "Under_Process_Branch" => "",
-            "Term_Loan_Amount_In_Process" => "",
-            "Under_Process_Date" => "",
-            "ROI" => "",
-            "Colletral" => "",
-            "Consultant" => "",
-            "Sanctioned_Bank" => "",
-            "Bank_Branch" => "",
-            "DOS" => "",
-            "TL_Amount" => "",
-            "Sactioned_Loan_Consultant" => "",
-            "category_type" => "",
-            "Remarks" => ""
-            ),
-            "inq_submit" => "Submit",
-            "bad_lead_reason" => "",
-            "bad_lead_reason_remark" => "",
-            "Image" => "",
-            "Constitution" => "",
-            "Status" => "",
-            "plot_details" => Array(
-                Array(
-                    "Plot_No" => $plot_no,
-                    "Floor" => $floor,
-                    "Road_No" => $road_no,
-                    "Plot_Status" => $plot_status,
-                    "Plot_Id" => "1",
+        if($next_status=='update'){
+            // if floor already exists then only update Contact_Name, Mobile_No and Plot_Status
+            if(mysqli_num_rows($plot_search)>0){
+              $insert_id="";
+              while($plot_search_res = mysqli_fetch_array($plot_search)){
+                $row_data_search=json_decode($plot_search_res["raw_data"]);
+
+                $post_fields = $row_data_search->post_fields;
+                $plot_details = $row_data_search->plot_details;
+                if($post_fields->IndustrialEstate==$result_estate['industrial_estate'] && $post_fields->Area==$result_estate['area_id'] && $post_fields->Taluka==$result_estate['taluka']){
+                  foreach ($plot_details as $pd) {
+                    if($pd->Plot_No==$plot_no && $pd->Floor==$floor && $pd->Road_No==$road_no){
+                      $result_rawdata_id = $plot_search_res['id'];
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            $res = update_tbl_tdrawdata_contact($contact_name,$mobile_no,$plot_status,$user_id,$result_rawdata_id);
+        }
+        else if($next_status=='insert'){
+        // if floor does not exist then create new json
+
+            $cp = Array (
+                "post_fields" => Array (
+                "source" => "",
+                "Source_Name" => "",
+                "Contact_Name" => $post_fields->Contact_Name,
+                "Mobile_No" => $post_fields->Mobile_No,
+                "Email" => "",
+                "Designation_In_Firm" => "",
+                "Firm_Name" => "",
+                "GST_No" => "",
+                "Type_of_Company" => "",
+                "Category" => "",
+                "Segment" => "",
+                "Premise" => "",
+                "Factory_Address" => "",
+                "state" => $result_estate['state_id'],
+                "city" => $result_estate['city_id'],
+                "Taluka" => $result_estate['taluka'],
+                "Area" => $result_estate['area_id'],
+                "IndustrialEstate" => $result_estate['industrial_estate'],
+                "loan_applied" => "",
+                "Completion_Date" => "",
+                "Term_Loan_Amount" => "",
+                "CC_Loan_Amount" => "",
+                "Under_Process_Bank" => "",
+                "Under_Process_Branch" => "",
+                "Term_Loan_Amount_In_Process" => "",
+                "Under_Process_Date" => "",
+                "ROI" => "",
+                "Colletral" => "",
+                "Consultant" => "",
+                "Sanctioned_Bank" => "",
+                "Bank_Branch" => "",
+                "DOS" => "",
+                "TL_Amount" => "",
+                "Sactioned_Loan_Consultant" => "",
+                "category_type" => "",
+                "Remarks" => ""
                 ),
-            ) 
-        );
-       
-        // Encode array to json
-        $json = json_encode($cp);
-       
-        $result_rawdata_id=$db->insert_tbl_tdrawdata($json,$user_id,$id);
+                "inq_submit" => "Submit",
+                "bad_lead_reason" => "",
+                "bad_lead_reason_remark" => "",
+                "Image" => "",
+                "Constitution" => "",
+                "Status" => "",
+                "plot_details" => Array(
+                    Array(
+                        "Plot_No" => $plot_no,
+                        "Floor" => $floor,
+                        "Road_No" => $road_no,
+                        "Plot_Status" => $plot_status,
+                        "Plot_Id" => "1",
+                    ),
+                ) 
+            );
+           
+            // Encode array to json
+            $json = json_encode($cp);
+           
+            $result_rawdata_id=$db->insert_tbl_tdrawdata($json,$user_id,$id);
+        }
       
         $plot_id = '1';
 
@@ -3780,27 +3899,6 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
 
     }
 
-    // to get blank json data in tbl_tdrawdata and delete it
-    if($next_status=='update'){
-        if(mysqli_num_rows($result_plot_search)>0){
-          $delete_id="";
-          while($plot_search_res = mysqli_fetch_array($result_plot_search)){
-            $row_data_search=json_decode($plot_search_res["raw_data"]);
-
-            $plot_details = $row_data_search->plot_details;
-            foreach ($plot_details as $pd) {
-              if($pd->Plot_No==$plot_no && $pd->Floor==$floor){
-                $delete_id = $plot_search_res['id'];
-                break;
-              }
-            }
-          }
-          if($delete_id!=""){
-            $result_del=$db->delete_tbl_tdrawdata($delete_id);
-          }
-        }
-    }
-
     if($result_company_plot){
         $data['message'] = "Data added successfully";
         $data['success'] = true;
@@ -3837,6 +3935,10 @@ $app->post('/get_filter','authenticateUser', function () use ($app) {
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data'], $temp);
         }
+
+        $temp['filter'] = 'No Filter';
+        $temp = array_map('utf8_encode', $temp);
+        array_push($data['data'], $temp);
 
         $data['message'] = "";
         $data['success'] = true;
@@ -3918,7 +4020,7 @@ $app->post('/followups_list','authenticateUser', function () use ($app) {
 
         foreach ($organizedData as $date => $entries) {
             $data['data'][] = [
-                'followup_date' => date('d-m-Y',strtotime($date)),
+                'followup_date' => date_format($date,"d-m-Y"),
                 'entries' => $entries,
             ];
         }

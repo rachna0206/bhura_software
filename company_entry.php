@@ -45,6 +45,9 @@ $stmt_badlead_reason->close();
 // insert data
 if(isset($_REQUEST['btnsubmit']))
 {
+  mysqli_autocommit($obj->con1, false);
+  mysqli_begin_transaction($obj->con1);
+
   $plot_status = isset($_REQUEST['plot_status'])?$_REQUEST['plot_status']:"";
   $premise = $_REQUEST['premises'];
   $gst_no = $_REQUEST['gst_no'];
@@ -106,7 +109,9 @@ if(isset($_REQUEST['btnsubmit']))
   $data=mysqli_fetch_array($res);
   $row_data=json_decode($data["raw_data"]);
   $post_fields=$row_data->post_fields;
-  $plot_details=$row_data->plot_details;
+  if($row_data->plot_details){
+    $plot_details=$row_data->plot_details;
+  }
 
   //$state = $post_fields->State;
 
@@ -135,7 +140,9 @@ if(isset($_REQUEST['btnsubmit']))
   $post_fields->loan_applied = $_COOKIE['loan_sanction'];
   $post_fields->Completion_Date = $_COOKIE['completion_date'];
   $post_fields->Existing_client_status = $_COOKIE['expansion_status'];
-  $plot_details["$plot_index"]->Plot_Status = $plot_status;
+  if($row_data->plot_details){
+    $plot_details["$plot_index"]->Plot_Status = $plot_status;
+  }
 
   if($_COOKIE['expansion_status']=="positive for expansion")
   {
@@ -304,12 +311,19 @@ if(isset($_REQUEST['btnsubmit']))
     }
   } 
   catch(\Exception  $e) {
+    if($obj->con1) {
+      mysqli_rollback($obj->con1);
+      mysqli_autocommit($obj->con1, true);
+    }
     setcookie("sql_error", urlencode($e->getMessage()),time()+3600,"/");
   }
   $stmt->close();
 
   if($Resp)
   {
+    mysqli_commit($obj->con1);
+    mysqli_autocommit($obj->con1, true);
+
     setcookie("loan_sanction", "data",time()-3600,"/");
     setcookie("completion_date", "data",time()-3600,"/");
     setcookie("expansion_status", "data",time()-3600,"/");
@@ -329,6 +343,9 @@ if(isset($_REQUEST['btnsubmit']))
 // for floor modal
 if(isset($_REQUEST['btn_modal_insert_floor']))
 {
+  mysqli_autocommit($obj->con1, false);
+  mysqli_begin_transaction($obj->con1);
+
   $floor_confirmation = $_REQUEST['floor_confirmation'];
   $plot_no = $_REQUEST['plot_no_floormodal'];
   $road_no = $_REQUEST['road_no_floormodal'];
@@ -607,11 +624,18 @@ if(isset($_REQUEST['btn_modal_insert_floor']))
     }
   } 
   catch(\Exception  $e) {
+    if($obj->con1) {
+      mysqli_rollback($obj->con1);
+      mysqli_autocommit($obj->con1, true);
+    }
     setcookie("sql_error", urlencode($e->getMessage()),time()+3600,"/");
   }
 
   if($Resp)
   {
+    mysqli_commit($obj->con1);
+    mysqli_autocommit($obj->con1, true);
+
     if($floor_confirmation=='same_owner' || $floor_confirmation=='different_company'){
       setcookie("id_forentry", $insert_id, time()+3600,"/");
       setcookie("plotno_forentry", $plot_no, time()+3600,"/");
@@ -630,9 +654,13 @@ if(isset($_REQUEST['btn_modal_insert_floor']))
   }
 }
 
+
 // for plot modal
 if(isset($_REQUEST['btn_modal_insert_plot']))
 { 
+  mysqli_autocommit($obj->con1, false);
+  mysqli_begin_transaction($obj->con1);
+
   $floor = $_REQUEST['floor_plotmodal'];
   $road_no = isset($_REQUEST['road_no_plotmodal'])?$_REQUEST['road_no_plotmodal']:"";
   $plot_status = $_REQUEST['plot_status_plotmodal'];
@@ -651,6 +679,7 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
   $estate_result_plot = $stmt_estate->get_result()->fetch_assoc();
   $stmt_estate->close();
 
+  // get id from tbl_tdrawdata of selected plot_no and floor_no
   $stmt_plot_search = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_result_plot['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_result_plot['area_id'])."%' and lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_result_plot['taluka'])."%'");
   $stmt_plot_search->execute();
   $plot_search = $stmt_plot_search->get_result();
@@ -665,7 +694,6 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
     $stmt_company_plot_search = $obj->con1->prepare("SELECT pid FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=? and road_no=?");
     $stmt_company_plot_search->bind_param("siis",$plot_no,$floor,$estate_id,$road_no);
   }
-  
   $stmt_company_plot_search->execute();
   $pr_company_plot_search = $stmt_company_plot_search->get_result();
   $stmt_company_plot_search->close();
@@ -680,16 +708,19 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
     $next_status = 'insert';
   }
   
+
+  $stmt_slist = $obj->con1->prepare("select * from tbl_tdrawdata where id=?");
+  $stmt_slist->bind_param("i",$id);
+  $stmt_slist->execute();
+  $res = $stmt_slist->get_result();
+  $stmt_slist->close();
+
+  $data=mysqli_fetch_array($res);
+
   try
   {
     if($plot_confirmation=='same_as_ground'){  // Same Company As Ground
-      $stmt_slist = $obj->con1->prepare("select * from tbl_tdrawdata where id=?");
-      $stmt_slist->bind_param("i",$id);
-      $stmt_slist->execute();
-      $res = $stmt_slist->get_result();
-      $stmt_slist->close();
-
-      $data=mysqli_fetch_array($res);
+      // update plot_details section of already existing company
       $row_data=json_decode($data["raw_data"]);
       $post_fields = $row_data->post_fields;
 
@@ -763,6 +794,33 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
           $Resp=$stmt_visit_date->execute();
           $stmt_visit_date->close();
         }
+
+        // to get blank json data in tbl_tdrawdata and delete it
+        if($next_status=='update'){
+          if(mysqli_num_rows($plot_search)>0){
+            $delete_id="";
+            while($plot_search_res = mysqli_fetch_array($plot_search)){
+              $row_data_search=json_decode($plot_search_res["raw_data"]);
+
+              $post_fields = $row_data_search->post_fields;
+              $plot_details = $row_data_search->plot_details;
+              if($post_fields->IndustrialEstate==$estate_result_plot['industrial_estate'] && $post_fields->Area==$estate_result_plot['area_id'] && $post_fields->Taluka==$estate_result_plot['taluka']){
+                foreach ($plot_details as $pd) {
+                  if($pd->Plot_No==$plot_no && $pd->Floor==$floor && $pd->Road_No==$road_no){
+                    $delete_id = $plot_search_res['id'];
+                    break;
+                  }
+                }
+              }
+            }
+            if($delete_id!=""){
+              $stmt_del = $obj->con1->prepare("DELETE from tbl_tdrawdata where id=?");
+              $stmt_del->bind_param("i",$delete_id);
+              $Resp=$stmt_del->execute();   
+              $stmt_del->close();   
+            }
+          }
+        }
       }
 
       $plot_id = $last_plot_id+1;
@@ -783,86 +841,111 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
         
     }
     else if($plot_confirmation=='same_owner'){   // Same Owner As Ground But Different Company
-      $stmt_slist = $obj->con1->prepare("select * from tbl_tdrawdata where id=?");
-      $stmt_slist->bind_param("i",$id);
-      $stmt_slist->execute();
-      $res = $stmt_slist->get_result();
-      $stmt_slist->close();
 
-      $data=mysqli_fetch_array($res);
+      // to get Contact_Name and Mobile_No from existing company
       $row_data=json_decode($data["raw_data"]);
       $post_fields = $row_data->post_fields;
+      $mobile_no = $post_fields->Mobile_No;
+      $contact_name = $post_fields->Contact_Name;
 
-      $cp = Array (
-          "post_fields" => Array (
-          "source" => "",
-          "Source_Name" => "",
-          "Contact_Name" => $post_fields->Contact_Name,
-          "Mobile_No" => $post_fields->Mobile_No,
-          "Email" => "",
-          "Designation_In_Firm" => "",
-          "Firm_Name" => "",
-          "GST_No" => "",
-          "Type_of_Company" => "",
-          "Category" => "",
-          "Segment" => "",
-          "Premise" => "",
-          "Factory_Address" => "",
-          "state" => $estate_result_plot['state_id'],
-          "city" => $estate_result_plot['city_id'],
-          "Taluka" => $estate_result_plot['taluka'],
-          "Area" => $estate_result_plot['area_id'],
-          "IndustrialEstate" => $estate_result_plot['industrial_estate'],
-          "loan_applied" =>$post_fields->loan_applied,
-          "Completion_Date" =>$post_fields->Completion_Date,
-          "Term_Loan_Amount" => "",
-          "CC_Loan_Amount" => "",
-          "Under_Process_Bank" => "",
-          "Under_Process_Branch" => "",
-          "Term_Loan_Amount_In_Process" => "",
-          "Under_Process_Date" => "",
-          "ROI" => "",
-          "Colletral" => "",
-          "Consultant" => "",
-          "Sanctioned_Bank" => "",
-          "Bank_Branch" => "",
-          "DOS" => "",
-          "TL_Amount" => "",
-          "Sactioned_Loan_Consultant" => "",
-          "category_type" => "",
-          "Remarks" => ""
-        ),
-        "inq_submit" => "Submit",
-        "bad_lead_reason" => "",
-        "bad_lead_reason_remark" => "",
-        "Image" => "",
-        "Constitution" => "",
-        "Status" => "",
-        "plot_details" => Array(
-          Array(
-            "Plot_No" => $plot_no,
-            "Floor" => $floor,
-            "Road_No" => $road_no,
-            "Plot_Status" => $plot_status,
-            "Plot_Id" => "1",
+      if($next_status=='update'){
+        // if floor already exists then only update Contact_Name, Mobile_No and Plot_Status
+        if(mysqli_num_rows($plot_search)>0){
+          $insert_id="";
+          while($plot_search_res = mysqli_fetch_array($plot_search)){
+            $row_data_search=json_decode($plot_search_res["raw_data"]);
+
+            $post_fields = $row_data_search->post_fields;
+            $plot_details = $row_data_search->plot_details;
+            if($post_fields->IndustrialEstate==$estate_result_plot['industrial_estate'] && $post_fields->Area==$estate_result_plot['area_id'] && $post_fields->Taluka==$estate_result_plot['taluka']){
+              foreach ($plot_details as $pd) {
+                if($pd->Plot_No==$plot_no && $pd->Floor==$floor && $pd->Road_No==$road_no){
+                  $insert_id = $plot_search_res['id'];
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        $stmt = $obj->con1->prepare("UPDATE `tbl_tdrawdata` SET raw_data=JSON_SET(raw_data,'$.post_fields.Contact_Name','".$contact_name."','$.post_fields.Mobile_No','".$mobile_no."','$.plot_details[0].Plot_Status','".$plot_status."'), userid='".$user_id."' WHERE id='".$insert_id."'");
+        $Resp=$stmt->execute();
+        //$insert_id = mysqli_insert_id($obj->con1);
+        $stmt->close();
+      }
+      else if($next_status=='insert'){
+        // if floor does not exist then create new json
+        $cp = Array (
+            "post_fields" => Array (
+            "source" => "",
+            "Source_Name" => "",
+            "Contact_Name" => $contact_name,
+            "Mobile_No" => $mobile_no,
+            "Email" => "",
+            "Designation_In_Firm" => "",
+            "Firm_Name" => "",
+            "GST_No" => "",
+            "Type_of_Company" => "",
+            "Category" => "",
+            "Segment" => "",
+            "Premise" => "",
+            "Factory_Address" => "",
+            "state" => $estate_result_plot['state_id'],
+            "city" => $estate_result_plot['city_id'],
+            "Taluka" => $estate_result_plot['taluka'],
+            "Area" => $estate_result_plot['area_id'],
+            "IndustrialEstate" => $estate_result_plot['industrial_estate'],
+            "loan_applied" =>$post_fields->loan_applied,
+            "Completion_Date" =>$post_fields->Completion_Date,
+            "Term_Loan_Amount" => "",
+            "CC_Loan_Amount" => "",
+            "Under_Process_Bank" => "",
+            "Under_Process_Branch" => "",
+            "Term_Loan_Amount_In_Process" => "",
+            "Under_Process_Date" => "",
+            "ROI" => "",
+            "Colletral" => "",
+            "Consultant" => "",
+            "Sanctioned_Bank" => "",
+            "Bank_Branch" => "",
+            "DOS" => "",
+            "TL_Amount" => "",
+            "Sactioned_Loan_Consultant" => "",
+            "category_type" => "",
+            "Remarks" => ""
           ),
-        ) 
-      );
-       
-      // Encode array to json
-      $json = json_encode($cp);
-       
-      $stmt = $obj->con1->prepare("INSERT INTO `tbl_tdrawdata`(`raw_data`,`userid`) VALUES (?,?)");
-      $stmt->bind_param("ss",$json,$user_id);
-      $Resp=$stmt->execute();
-      $insert_id = mysqli_insert_id($obj->con1);
-      $stmt->close();
-      
+          "inq_submit" => "Submit",
+          "bad_lead_reason" => "",
+          "bad_lead_reason_remark" => "",
+          "Image" => "",
+          "Constitution" => "",
+          "Status" => "",
+          "plot_details" => Array(
+            Array(
+              "Plot_No" => $plot_no,
+              "Floor" => $floor,
+              "Road_No" => $road_no,
+              "Plot_Status" => $plot_status,
+              "Plot_Id" => "1",
+            ),
+          ) 
+        );
+         
+        // Encode array to json
+        $json = json_encode($cp);
+         
+        $stmt = $obj->con1->prepare("INSERT INTO `tbl_tdrawdata`(`raw_data`,`userid`) VALUES (?,?)");
+        $stmt->bind_param("ss",$json,$user_id);
+        $Resp=$stmt->execute();
+        $insert_id = mysqli_insert_id($obj->con1);
+        $stmt->close();
+      }
+
       $plot_id = '1';
 
       // insert in pr_company_details
       $stmt_company_detail = $obj->con1->prepare("INSERT INTO `pr_company_details`(`contact_name`, `mobile_no`, `state`, `city`, `taluka`, `area`, `industrial_estate`, `industrial_estate_id`, `user_id`, `rawdata_id`) VALUES (?,?,?,?,?,?,?,?,?,?)");
-      $stmt_company_detail->bind_param("sssssssiii",$post_fields->Contact_Name,$post_fields->Mobile_No,$estate_result_plot["state_id"], $estate_result_plot["city_id"], $estate_result_plot["taluka"], $estate_result_plot["area_id"], $estate_result_plot["industrial_estate"],$estate_id,$user_id,$insert_id);
+      $stmt_company_detail->bind_param("sssssssiii",$contact_name,$mobile_no,$estate_result_plot["state_id"], $estate_result_plot["city_id"], $estate_result_plot["taluka"], $estate_result_plot["area_id"], $estate_result_plot["industrial_estate"],$estate_id,$user_id,$insert_id);
       $Resp=$stmt_company_detail->execute();
       $company_last_insert_id = mysqli_insert_id($obj->con1);
       $stmt_company_detail->close();
@@ -882,45 +965,24 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
       }
     }
 
-
-    // to get blank json data in tbl_tdrawdata and delete it
-    if($next_status=='update'){
-      if(mysqli_num_rows($plot_search)>0){
-        $delete_id="";
-        while($plot_search_res = mysqli_fetch_array($plot_search)){
-          $row_data_search=json_decode($plot_search_res["raw_data"]);
-
-          $post_fields = $row_data_search->post_fields;
-          $plot_details = $row_data_search->plot_details;
-          if($post_fields->IndustrialEstate==$estate_result_plot['industrial_estate'] && $post_fields->Area==$estate_result_plot['area_id'] && $post_fields->Taluka==$estate_result_plot['taluka']){
-            foreach ($plot_details as $pd) {
-              if($pd->Plot_No==$plot_no && $pd->Floor==$floor && $pd->Road_No==$road_no){
-                $delete_id = $plot_search_res['id'];
-                break;
-              }
-            }
-          }
-        }
-        if($delete_id!=""){
-          $stmt_del = $obj->con1->prepare("DELETE from tbl_tdrawdata where id=?");
-          $stmt_del->bind_param("i",$delete_id);
-          $Resp=$stmt_del->execute();   
-          $stmt_del->close();   
-        }
-      }
-    }
-
     if(!$Resp)
     {
       throw new Exception("Problem in adding! ". strtok($obj->con1-> error,  '('));
     }
   } 
   catch(\Exception  $e) {
+    if($obj->con1) {
+      mysqli_rollback($obj->con1);
+      mysqli_autocommit($obj->con1, true);
+    }
     setcookie("sql_error", urlencode($e->getMessage()),time()+3600,"/");
   }
 
   if($Resp)
   {
+    mysqli_commit($obj->con1);
+    mysqli_autocommit($obj->con1, true);
+
     if($plot_confirmation=='same_owner'){
       setcookie("id_forentry", $insert_id, time()+3600,"/");
       setcookie("plotno_forentry", $plot_no, time()+3600,"/");
@@ -942,6 +1004,9 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
 // for additional plot modal
 if(isset($_REQUEST['btn_modal_additional_plot']))
 {
+  mysqli_autocommit($obj->con1, false);
+  mysqli_begin_transaction($obj->con1);
+
   $estate_id = $_REQUEST['estateid_additionalplot'];
   $plot_no = $_REQUEST['additional_plot'];
   $road_no = isset($_REQUEST['road_no_additionalplot'])?$_REQUEST['road_no_additionalplot']:"";
@@ -1043,11 +1108,18 @@ if(isset($_REQUEST['btn_modal_additional_plot']))
     $stmt->close();
   } 
   catch(\Exception  $e) {
+    if($obj->con1) {
+      mysqli_rollback($obj->con1);
+      mysqli_autocommit($obj->con1, true);
+    }
     setcookie("sql_error", urlencode($e->getMessage()),time()+3600,"/");
   }
 
   if($Resp)
   {
+    mysqli_commit($obj->con1);
+    mysqli_autocommit($obj->con1, true);
+
     setcookie("id_forentry", $insert_id, time()+3600,"/");
     setcookie("plotno_forentry", $plot_no, time()+3600,"/");
     setcookie("floorno_forentry", $floor, time()+3600,"/");
@@ -1135,6 +1207,12 @@ if(isset($_COOKIE["msg"]) )
 ?>
 <!-- Basic Layout -->
 
+  <!-- <div id="spinner" hidden>
+    <div class = "loader d-flex align-items-center justify-content-center" style=" height: 100vh;width: 100%; background-color: white; position: absolute; z-index: 1111;left: 0; top: 0;">
+      <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+    </div>  
+  </div> -->
+  
 <div class="row">
   <div class="col-xl">
     <div class="card mb-4">
@@ -1507,7 +1585,8 @@ if(isset($_COOKIE["msg"]) )
 </div>
 <!-- /modal-->
 
-           
+          
+
 <!-- / Content -->
 <script type="text/javascript">
 
@@ -1745,14 +1824,18 @@ if(isset($_COOKIE["msg"]) )
   function get_companydetails(plot_no,estate_id){
     road_no = $('#road_no').val();
     floor_no = $('#floor').val();
-
+    
     $.ajax({
       async: false,
       type: "POST",
       url: "ajaxdata.php?action=get_companydetails",
       data: "plot_no="+plot_no+"&estate_id="+estate_id+"&floor_no="+floor_no+"&road_no="+road_no,
       cache: false,
+      // beforeSend: function() {
+      //   $("#spinner").removeAttr('hidden');
+      // },
       success: function(result){
+
         var res = $.parseJSON(result);
         
         $('#ttId').val(res['Id']);
@@ -1869,6 +1952,7 @@ if(isset($_COOKIE["msg"]) )
             $('#btnsubmit').removeAttr("hidden");
             $('#btnsubmit').removeAttr("disabled");
         }
+        //$("#spinner").attr("hidden",true);
       }
     });
   }

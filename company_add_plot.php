@@ -7,46 +7,9 @@
         $estateid_est = $_COOKIE['estateid_comp_addplot'];
         $rawdataid_est = $_COOKIE['rawdataid_comp_addplot'];
         
-        $company_status = $_COOKIE['company_status'];
-        if($company_status=='lead'){
-          $status_company = 'Positive';
-          
-        } else if($company_status=='badlead'){
-          $status_company = 'Negative';
-          
-        } 
-        else {
-          $status_company = 'Existing Client';
-          
-        } 
-        if($company_status=='applicationstart' || $company_status=='schemesstarted')
-        {
-          //select max(tatassign_id), tatassign_status ,tatassign_user_id from tbl_tdtatassign group by tatassign_inq_id;
-          // State List
+        $status_company = $_COOKIE['company_status'];
 
-         
-          $stmt_stage = $obj->con1->prepare("select a1.tatassign_id, a1.tatassign_status ,a1.tatassign_user_id,u1.name as emp_name from tbl_tdtatassign a1,tbl_users u1 where a1.tatassign_user_id=u1.id and  a1.tatassign_inq_id=?  order by a1.tatassign_id desc limit 1");
-          $stmt_stage->bind_param("i",$rawdataid_est);
-          $stmt_stage->execute();
-          $stage_result = $stmt_stage->get_result()->fetch_assoc();
-          $stmt_stage->close();
-          $emp_name=$stage_result["emp_name"];
-          $status_company=$stage_result["tatassign_status"];
-
-        }
-        else
-        {
-          
-          
-          $stmt_stage = $obj->con1->prepare("select r1.id, r1.stage ,r1.user_id,u1.name as emp_name from tbl_tdrawassign r1,tbl_users u1 where r1.user_id=u1.id and r1.inq_id=? order by r1.id desc limit 1; ");
-          $stmt_stage->bind_param("i",$rawdataid_est);
-          $stmt_stage->execute();
-          $stage_result = $stmt_stage->get_result()->fetch_assoc();
-          $stmt_stage->close();
-          $emp_name=$stage_result["emp_name"];
-
-        }
-        
+        $emp_name = $_COOKIE['empname_comp_addplot'];
         
     }
     else if($selecttype_est=='select_company_first'){
@@ -55,47 +18,8 @@
         $taluka_comp = $_COOKIE['taluka_comp_addplot'];
         $area_comp = $_COOKIE['area_comp_addplot'];
         $rawdataid_comp = $_COOKIE['rawdataid_comp_addplot'];
-        $company_status = $_COOKIE['company_status'];
-       // $factory_address_comp = $_COOKIE['factoryadd_comp_addplot'];
-        if($company_status=='lead'){
-          $status_company = 'Positive';
-          
-        } else if($company_status=='badlead'){
-          $status_company = 'Negative';
-          
-        }
-        else {
-          $status_company = 'Existing Client';
-          
-        }
-        
-        if($company_status=='applicationstart' || $company_status=='schemesstarted')
-        {
-          //select max(tatassign_id), tatassign_status ,tatassign_user_id from tbl_tdtatassign group by tatassign_inq_id;
-
-          
-          // State List
-          $stmt_stage = $obj->con1->prepare("select a1.tatassign_id, a1.tatassign_status ,a1.tatassign_user_id,u1.name as emp_name from tbl_tdtatassign a1,tbl_users u1 where a1.tatassign_user_id=u1.id and  a1.tatassign_inq_id=?  order by a1.tatassign_id desc limit 1");
-          $stmt_stage->bind_param("i",$rawdataid_comp);
-          $stmt_stage->execute();
-          $stage_result = $stmt_stage->get_result()->fetch_assoc();
-          $stmt_stage->close();
-          $emp_name=$stage_result["emp_name"];
-          $status_company=$stage_result["tatassign_status"];
-
-        }
-        else
-        {
-         
-          $stmt_stage = $obj->con1->prepare("select r1.id, r1.stage ,r1.user_id,u1.name as emp_name from tbl_tdrawassign r1,tbl_users u1 where r1.user_id=u1.id and r1.inq_id=? order by r1.id desc limit 1; ");
-          $stmt_stage->bind_param("i",$rawdataid_comp);
-          $stmt_stage->execute();
-          $stage_result = $stmt_stage->get_result()->fetch_assoc();
-          $stmt_stage->close();
-          $emp_name=$stage_result["emp_name"];
-
-        }
-         
+        $status_company = $_COOKIE['company_status'];
+        $emp_name = $_COOKIE['empname_comp_addplot'];
     }
         
   }
@@ -778,6 +702,7 @@ if(isset($_COOKIE["msg"]) )
                 <select name="est_comp_id" id="est_comp_id" onchange="get_companyStatus(this.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?> disabled >
                     <option value="">Select Company</option>
             <?php
+
                 $stmt_estate = $obj->con1->prepare("SELECT i1.*,a1.plotting_pattern FROM tbl_industrial_estate i1 , pr_add_industrialestate_details a1 where i1.id=a1.industrial_estate_id and i1.id=?");
                 $stmt_estate->bind_param("i",$estateid_est);
                 $stmt_estate->execute();
@@ -813,11 +738,11 @@ if(isset($_COOKIE["msg"]) )
                 $emp_result = $stmt_emp->get_result()->fetch_assoc();
                 $stmt_emp->close();
                 ?>
-                <label class="form-label" for="taluka_comp">Employee Name</label>
+                <label class="form-label" for="emp_comp">Employee Name</label>
                 <input type="text" name="emp_comp" class="form-control" value="<?php echo $emp_name ?>" disabled>
               </div>
               <div class="mb-3">
-                <label class="form-label" for="taluka_comp">Factory Address</label>
+                <label class="form-label" for="factory_address_est">Factory Address</label>
                 <input type="text" name="factory_address_est" id="factory_address_est" class="form-control" value="" >
               </div>
               
@@ -861,31 +786,15 @@ if(isset($_COOKIE["msg"]) )
                     <option value="">Select Plot No.</option>
             <?php 
                 if($plotting_pattern=="Series"){
-                    $plot_array = array();
-
-                    $stmt_plot = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%'");
+                    $stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and company_id IS NULL order by abs(plot_no)");
+                    $stmt_plot->bind_param("i",$estateid_est);
                     $stmt_plot->execute();
                     $plot_res = $stmt_plot->get_result();
                     $stmt_plot->close();
-
                     while($plot = mysqli_fetch_array($plot_res)){
-                        $raw_data=json_decode($plot["raw_data"]);
-                        $post_fields=$raw_data->post_fields;
-                        if(isset($raw_data->plot_details)){
-                            $plot_details=$raw_data->plot_details;
-                            asort($plot_details);
-                            if($post_fields->IndustrialEstate==$estate_res["industrial_estate"] && $post_fields->Taluka==$estate_res["taluka"]){
-                                foreach ($plot_details as $pd) {
-                                    if($pd->Floor == '0'){
-                                        $plot_array[] = $pd->Plot_No;
-                                    } } }
-                                }
-                            }
-
-                            sort($plot_array);
-                            foreach($plot_array as $plot_no){
             ?>
-                    <option value="<?php echo $plot_no ?>"><?php echo $plot_no ?></option>';    
+                    <!-- <option value="<?php echo $plot_no ?>"><?php echo $plot_no ?></option> -->    
+                    <option value="<?php echo $plot['plot_no'] ?>"><?php echo $plot['plot_no'] ?></option>
             <?php  } }?>
                   </select>
                 </div>
@@ -933,11 +842,11 @@ if(isset($_COOKIE["msg"]) )
               </div>
               <div id="company_status_comp" class="text-success"></div>
               <div class="mb-3">
-                <label class="form-label" for="taluka_comp">Factory Address</label>
+                <label class="form-label" for="factory_address_comp">Factory Address</label>
                 <input type="text" name="factory_address_comp" id="factory_address_comp" class="form-control" value="" >
               </div>
               <div class="mb-3">
-                <label class="form-label" for="taluka_comp">Status</label>
+                <label class="form-label" for="status_comp">Status</label>
                 <input type="text" name="status_comp" class="form-control" value="<?php echo $status_company ?>" disabled>
               </div>
 
@@ -978,6 +887,7 @@ if(isset($_COOKIE["msg"]) )
                 <select name="industrial_estate_id_comp" id="industrial_estate_id_comp" class="form-control" onchange="areaList_tbl_indestate(this.value,city_comp.value,state_comp.value)" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
                     <option value="">Select Industrial Estate</option>
             <?php 
+
                 $stmt = $obj->con1->prepare("SELECT e1.id,e1.industrial_estate FROM `assign_estate` a1,tbl_industrial_estate e1 where a1.industrial_estate_id=e1.id and a1.employee_id=?");
                 $stmt->bind_param("i",$_SESSION["id"]);
                 $stmt->execute();
@@ -1003,7 +913,7 @@ if(isset($_COOKIE["msg"]) )
                 $emp_result = $stmt_emp->get_result()->fetch_assoc();
                 $stmt_emp->close();
                 ?>
-                <label class="form-label" for="taluka_comp">Employee Name</label>
+                <label class="form-label" for="emp_est">Employee Name</label>
                 <input type="text" name="emp_est" class="form-control" value="<?php echo $emp_name ?>" disabled>
               </div>
               
@@ -1243,6 +1153,7 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
   }
 
   function getFloor_companyPlot(plot_no,estate_id){
+
     if(plot_no!=""){
       /*if($('#select_company_first').is(':checked')) { 
         suffix = '_comp';
@@ -1257,6 +1168,7 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
         suffix = '_est';
       }
       road_no = $('#road_no'+suffix).val();
+
       $.ajax({
         async: false,
         type: "POST",

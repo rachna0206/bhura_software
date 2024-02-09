@@ -436,7 +436,10 @@ public function get_plot_no($filter,$estate_id)
     } 
     else if($filter=="Existing Client"){
         $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
-    } 
+    }
+    else if($filter=="No Filter"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+    }
         
     $stmt_plot->bind_param("i",$estate_id);    
     $stmt_plot->execute();
@@ -486,6 +489,9 @@ public function get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pa
         else if($filter=="Existing Client"){
             $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         }
+        else if($filter=="No Filter"){
+            $stmt_floor = $this->con->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+        } 
         $stmt_floor->bind_param("is",$estate_id,$plot_no);
     }
     else if($plotting_pattern=='Road'){
@@ -504,6 +510,9 @@ public function get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pa
         else if($filter=="Existing Client"){
             $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
         }
+        else if($filter=="No Filter"){
+            $stmt_floor = $this->con->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+        } 
         $stmt_floor->bind_param("iss",$estate_id,$road_no,$plot_no);
     }
 
@@ -541,6 +550,9 @@ public function get_road_plot($filter,$estate_id,$road_no)
     else if($filter=="Existing Client"){
         $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
     }
+    else if($filter=="No Filter"){
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+    } 
 
     $stmt_plot->bind_param("is",$estate_id,$road_no);
     $stmt_plot->execute();
@@ -605,12 +617,19 @@ public function get_pr_company_plot($plotting_pattern,$estate_id,$plot_no,$floor
     return $pr_company_plot;
 }
 
-public function get_pr_company_details($company_id){
-    $stmt_company_details = $this->con->prepare("SELECT image, constitution, status FROM `pr_company_details` where cid=?");
-                $stmt_company_details->bind_param("i",$company_id);
-    $stmt_company_details->execute();
-    $pr_company_details = $stmt_company_details->get_result()->fetch_assoc();
-    $stmt_company_details->close();
+public function get_pr_company_details($plotting_pattern,$estate_id,$plot_no,$floor_no,$road_no){
+
+    if($plotting_pattern=="Series"){
+        $stmt_company_plot = $this->con->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=?");
+        $stmt_company_plot->bind_param("sii",$plot_no,$floor_no,$estate_id);
+    }
+    else if($plotting_pattern=="Road"){
+        $stmt_company_plot = $this->con->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=? and p1.road_no=?");
+        $stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$estate_id,$road_no);
+    }
+    $stmt_company_plot->execute();
+    $pr_company_details = $stmt_company_plot->get_result()->fetch_assoc();
+    $stmt_company_plot->close();
 
     return $pr_company_details;
 }
@@ -660,6 +679,21 @@ public function delete_tbl_tdrawdata($delete_id)
     $Resp=$stmt_del->execute();   
     $stmt_del->close();
     return $Resp;
+}
+
+// update table tbl_tdrawdata
+public function update_tbl_tdrawdata_contact($contact_name,$mobile_no,$plot_status,$user_id,$id)
+{
+    $stmt = $this->con->prepare("UPDATE `tbl_tdrawdata` SET raw_data=JSON_SET(raw_data,'$.post_fields.Contact_Name','".$contact_name."','$.post_fields.Mobile_No','".$mobile_no."','$.plot_details[0].Plot_Status','".$plot_status."'), userid='".$user_id."' WHERE id='".$insert_id."'");
+    $Resp=$stmt->execute();
+    $num_rows_aff = mysqli_affected_rows($this->con);
+    $stmt->close();
+    
+    if ($Resp) {
+        return $num_rows_aff;
+    } else {
+        return -1;
+    }
 }
 
 // for visit count

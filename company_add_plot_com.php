@@ -110,7 +110,7 @@ if(isset($_COOKIE["msg"]) )
           <tbody class="table-border-bottom-0">
             <?php
 
-              $stmt_list = $obj->con1->prepare("SELECT id, json_unquote(raw_data->'$.post_fields.state') as state, json_unquote(raw_data->'$.post_fields.city') as city, json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as industrial_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Factory_Address') as factory_address, (SELECT CASE WHEN stage='lead' THEN 'Positive' WHEN stage='badlead' THEN 'Negative' ELSE 'Existing Client' END stage1  FROM `tbl_tdrawassign` where inq_id=tbl_tdrawdata.id order by id desc limit 1) as stage1, (SELECT stage FROM `tbl_tdrawassign` where inq_id=tbl_tdrawdata.id order by id desc limit 1) as stage FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details)");
+              $stmt_list = $obj->con1->prepare("SELECT id, raw_data->>'$.post_fields.state' as state, raw_data->>'$.post_fields.city' as city, raw_data->>'$.post_fields.Taluka' as taluka, raw_data->>'$.post_fields.Area' as area, raw_data->>'$.post_fields.IndustrialEstate' as industrial_estate, raw_data->>'$.post_fields.Firm_Name' as firm_name, raw_data->>'$.post_fields.Factory_Address' as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details)");
               $stmt_list->execute();
               $result = $stmt_list->get_result();
               $stmt_list->close();
@@ -118,20 +118,13 @@ if(isset($_COOKIE["msg"]) )
 
               while($data=mysqli_fetch_array($result))
               {
-                $stage1=$data["stage1"];
+                $stmt_status = $obj->con1->prepare("SELECT stage, CASE WHEN stage='lead' THEN 'Positive' WHEN stage='badlead' THEN 'Negative' ELSE 'Existing Client' END stage1 FROM `tbl_tdrawassign` WHERE inq_id=? order by id desc LIMIT 1");
+                $stmt_status->bind_param("i",$data['id']);
+                $stmt_status->execute();
+                $result_status = $stmt_status->get_result()->fetch_assoc();
+                $stmt_status->close();
 
-
-                if(in_array($user_id, $admin))
-                {
-                  $stmt_status = $obj->con1->prepare("SELECT stage FROM `tbl_tdrawassign` WHERE inq_id=? order by id desc LIMIT 1");
-                  $stmt_status->bind_param("i",$data['id']);
-                  $stmt_status->execute();
-                  $result_status = $stmt_status->get_result()->fetch_assoc();
-                  $stmt_status->close();
-                  $stage1=$result_status["stage"];
-                }
-
-                if($data["stage"]=='applicationstart' || $data["stage"]=='schemesstarted')
+                if($result_status["stage"]=='applicationstart' || $result_status["stage"]=='schemesstarted')
                 {
                   $stmt_stage = $obj->con1->prepare("select a1.tatassign_id, a1.tatassign_status ,a1.tatassign_user_id,u1.name as emp_name from tbl_tdtatassign a1,tbl_users u1 where a1.tatassign_user_id=u1.id and  a1.tatassign_inq_id=?  order by a1.tatassign_id desc limit 1");
                   $stmt_stage->bind_param("i",$data["id"]);
@@ -164,9 +157,9 @@ if(isset($_COOKIE["msg"]) )
               <td><?php echo $data["firm_name"] ?></td>
               <td><?php echo $emp_name ?></td>
               <td><?php echo $data["factory_address"] ?></td>
-              <td><?php echo $stage1 ?></td>
+              <td><?php echo $result_status["stage1"] ?></td>
               <td>
-                <a href="javascript:editdata('<?php echo $data["id"]?>','<?php echo base64_encode($data["state"]) ?>','<?php echo base64_encode($data["city"]) ?>','<?php echo base64_encode($data["taluka"]) ?>','<?php echo base64_encode($data["area"]) ?>','<?php echo base64_encode($data["firm_name"]) ?>','<?php echo $user_id ?>','<?php echo base64_encode($data["stage"]) ?>','<?php echo base64_encode($data["factory_address"]) ?>');"><i class="bx bx-edit-alt me-1"></i> </a>
+                <a href="javascript:editdata('<?php echo $data["id"]?>','<?php echo base64_encode($data["state"]) ?>','<?php echo base64_encode($data["city"]) ?>','<?php echo base64_encode($data["taluka"]) ?>','<?php echo base64_encode($data["area"]) ?>','<?php echo base64_encode($data["firm_name"]) ?>','<?php echo $user_id ?>','<?php echo base64_encode($result_status["stage1"]) ?>','<?php echo base64_encode($data["factory_address"]) ?>','<?php echo base64_encode($emp_name) ?>');"><i class="bx bx-edit-alt me-1"></i> </a>
               </td>
             </tr>
             <?php
@@ -186,7 +179,7 @@ if(isset($_COOKIE["msg"]) )
 
   <!-- / Content -->
 <script type="text/javascript">
-  function editdata(rawdata_id,state,city,taluka,area,firm_name,user_id,status,factory_address) {
+  function editdata(rawdata_id,state,city,taluka,area,firm_name,user_id,status,factory_address,emp_name) {
     
     createCookie('state_comp_addplot', atob(state));
     createCookie('city_comp_addplot', atob(city));
@@ -194,6 +187,7 @@ if(isset($_COOKIE["msg"]) )
     createCookie('area_comp_addplot', atob(area));
     createCookie('rawdataid_comp_addplot', rawdata_id);
     createCookie('company_status', atob(status));
+    createCookie('empname_comp_addplot', atob(emp_name));
     createCookie('selecttype_comp_addplot', 'select_company_first');
    
     localStorage.setItem("factoryadd_comp_addplot",atob(factory_address));

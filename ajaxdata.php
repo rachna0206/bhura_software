@@ -721,6 +721,7 @@ if(isset($_REQUEST['action']))
 	  	while($filter = mysqli_fetch_array($stmt_filter_result)){
 	  		$html.='<option value="'.$filter["assign_estate_status"].'">'.ucfirst(str_replace("_"," ",$filter["assign_estate_status"])).'</option>';	
 	  	}
+	  	$html.='<option value="no_filter">No Filter</option>';
 
 	  	echo $html;
 	}
@@ -767,6 +768,9 @@ if(isset($_REQUEST['action']))
 			else if($filter=="existing_client"){
 				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
 			}
+			else if($filter=="no_filter"){
+				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+			}
 
 			$stmt_plot->bind_param("i",$estate_id);
 			$stmt_plot->execute();
@@ -804,6 +808,9 @@ if(isset($_REQUEST['action']))
 		}
 		else if($filter=="existing_client"){
 			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+		}
+		else if($filter=="no_filter"){
+			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
 		}
 
 		$stmt_plot->bind_param("is",$estate_id,$road_no);
@@ -852,6 +859,9 @@ if(isset($_REQUEST['action']))
 			else if($filter=="existing_client"){
 				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
 			}
+			else if($filter=="no_filter"){
+				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+			}
 			
 			$stmt_floor->bind_param("is",$estate_id,$plot_no);
 		}
@@ -870,6 +880,9 @@ if(isset($_REQUEST['action']))
 			}
 			else if($filter=="existing_client"){
 				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+			}
+			else if($filter=="no_filter"){
+				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
 			}
 			$stmt_floor->bind_param("iss",$estate_id,$road_no,$plot_no);
 		}
@@ -908,6 +921,190 @@ if(isset($_REQUEST['action']))
 
 		if($plot_no!="" && $floor_no!=""){
 
+			$constitution = "";
+			$image = "";
+			$pr_comp_status = "";
+
+			if($plotting_pattern=="Series"){
+				$stmt_company_plot = $obj->con1->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=?");
+				$stmt_company_plot->bind_param("sii",$plot_no,$floor_no,$estate_id);
+			}
+			else if($plotting_pattern=="Road"){
+				$stmt_company_plot = $obj->con1->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=? and p1.road_no=?");
+				$stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$estate_id,$road_no);
+			}
+			$stmt_company_plot->execute();
+			$pr_company_plot = $stmt_company_plot->get_result()->fetch_assoc();
+			$stmt_company_plot->close();
+			$pr_comp_status = $pr_company_plot["status"];
+
+			if($pr_company_plot["rawdata_id"]!="" || $pr_company_plot["rawdata_id"]!=null){
+				// get common values from json from table tbl_tdrawdata
+				$stmt = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE id=?");
+				$stmt->bind_param("i",$pr_company_plot["rawdata_id"]);
+				$stmt->execute();
+				$company_details = $stmt->get_result();
+				$stmt->close();	
+
+				while($plot = mysqli_fetch_array($company_details)){
+					$row_data = json_decode($plot["raw_data"]);
+					$post_fields = $row_data->post_fields;
+
+					if($post_fields->IndustrialEstate==$estate_res['industrial_estate'] && $post_fields->Taluka==$estate_res['taluka'] && $post_fields->Area==$estate_res['area_id']){
+								
+						$reason = "";
+						$status = "";
+
+						// get company status (positive/negative/existing) from tbl_tdrawassign
+						$stmt_status = $obj->con1->prepare("SELECT stage FROM `tbl_tdrawassign` WHERE inq_id=? order by id desc LIMIT 1");
+						$stmt_status->bind_param("i",$plot['id']);
+						$stmt_status->execute();
+						$status_result = $stmt_status->get_result();
+						$stmt_status->close();
+						if(mysqli_num_rows($status_result)>0){
+							$status_res = mysqli_fetch_array($status_result);
+							if($status_res['stage']=="lead"){
+								$status = "Positive";	
+							}
+							else if($status_res['stage']=="badlead"){
+								$status = "Negative";
+							}
+							else{
+								$status = "Existing Client";	
+							}
+						}
+						else{
+							$status = ($pr_comp_status!=null)?$pr_comp_status:"";
+						}
+
+						if($status=='Negative'){
+							$stmt_reason = $obj->con1->prepare("SELECT bad_lead_reason FROM `tbl_tdbadleads` WHERE inq_id=?");
+							$stmt_reason->bind_param("i",$plot['id']);
+							$stmt_reason->execute();
+							$reason_result = $stmt_reason->get_result()->fetch_assoc();
+							$stmt_reason->close();
+							$reason = $reason_result['bad_lead_reason'];
+						}
+
+						$details = Array (
+							"Id" => $plot["id"],
+							"Plot_Id" => $pr_company_plot["plot_id"],
+							"Road_No" => $pr_company_plot["road_no"],
+							"IndustrialEstate" => $post_fields->IndustrialEstate,
+							"Area" => $post_fields->Area,
+							"Plot_Status" => isset($pr_company_plot["plot_status"])?$pr_company_plot["plot_status"]:"",
+							"Premise" => $post_fields->Premise,
+							"GST_No" => $post_fields->GST_No,
+							"Firm_Name" => $post_fields->Firm_Name,
+							"Contact_Name" => $post_fields->Contact_Name,
+							"Mobile_No" => $post_fields->Mobile_No,
+							"Constitution" => isset($pr_company_plot["constitution"])?$pr_company_plot["constitution"]:"",
+							"Category" => $post_fields->Category,
+							"Segment" => $post_fields->Segment,
+							"Status" => isset($pr_company_plot["status"])?$pr_company_plot["status"]:"",
+							"Reason" => $reason,
+							"source" => $post_fields->source,
+							"Source_Name" => $post_fields->Source_Name,
+							"Remarks" => $post_fields->Remarks,
+							"Image" => isset($pr_company_plot["image"])?$pr_company_plot["image"]:"",
+							"Company_detail_id" => $pr_company_plot["company_id"],
+							"Company_plot_id" => $pr_company_plot["pid"],
+                            "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
+                            "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
+                            "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
+						);
+						break;
+					}
+				}
+			}
+			else{
+				// get common values from json from table tbl_tdrawdata
+				$stmt = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%' and raw_data->'$.plot_details[*].Floor' like '%".$floor_no."%'");
+				$stmt->execute();
+				$company_details = $stmt->get_result();
+				$stmt->close();	
+
+				while($plot = mysqli_fetch_array($company_details)){
+					$row_data = json_decode($plot["raw_data"]);
+					$post_fields = $row_data->post_fields;
+
+					if($post_fields->IndustrialEstate==$estate_res['industrial_estate'] && $post_fields->Taluka==$estate_res['taluka'] && $post_fields->Area==$estate_res['area_id']){
+
+						$plot_details = $row_data->plot_details;
+
+						foreach ($plot_details as $pd) {
+							if($pd->Floor==$floor_no && $pd->Plot_No==$plot_no  && $pd->Road_No==$road_no){
+								
+								$reason = "";
+								$status = "";
+
+								// get company status (positive/negative/existing) from tbl_tdrawassign
+								$stmt_status = $obj->con1->prepare("SELECT stage FROM `tbl_tdrawassign` WHERE inq_id=? order by id desc LIMIT 1");
+								$stmt_status->bind_param("i",$plot['id']);
+								$stmt_status->execute();
+								$status_result = $stmt_status->get_result();
+								$stmt_status->close();
+								if(mysqli_num_rows($status_result)>0){
+									$status_res = mysqli_fetch_array($status_result);
+									if($status_res['stage']=="lead"){
+										$status = "Positive";	
+									}
+									else if($status_res['stage']=="badlead"){
+										$status = "Negative";	
+									}
+									else{
+										$status = "Existing Client";	
+									}
+								}
+								else{
+									$status = ($pr_comp_status!=null)?$pr_comp_status:"";
+								}
+
+								if($status=='Negative'){
+									$stmt_reason = $obj->con1->prepare("SELECT bad_lead_reason FROM `tbl_tdbadleads` WHERE inq_id=?");
+									$stmt_reason->bind_param("i",$plot['id']);
+									$stmt_reason->execute();
+									$reason_result = $stmt_reason->get_result()->fetch_assoc();
+									$stmt_reason->close();
+									$reason = $reason_result['bad_lead_reason'];
+								}
+
+								$details = Array (
+									"Id" => $plot["id"],
+									"Plot_Id" => $pr_company_plot["plot_id"],
+									"Road_No" => $pr_company_plot["road_no"],
+									"IndustrialEstate" => $post_fields->IndustrialEstate,
+									"Area" => $post_fields->Area,
+									"Plot_Status" => isset($pr_company_plot["plot_status"])?$pr_company_plot["plot_status"]:"",
+									"Premise" => $post_fields->Premise,
+									"GST_No" => $post_fields->GST_No,
+									"Firm_Name" => $post_fields->Firm_Name,
+									"Contact_Name" => $post_fields->Contact_Name,
+									"Mobile_No" => $post_fields->Mobile_No,
+									"Constitution" => isset($pr_company_plot["constitution"])?$pr_company_plot["constitution"]:"",
+									"Category" => $post_fields->Category,
+									"Segment" => $post_fields->Segment,
+									"Status" => isset($pr_company_plot["status"])?$pr_company_plot["status"]:"",
+									"Reason" => $reason,
+									"source" => $post_fields->source,
+									"Source_Name" => $post_fields->Source_Name,
+									"Remarks" => $post_fields->Remarks,
+									"Image" => isset($pr_company_plot["image"])?$pr_company_plot["image"]:"",
+									"Company_detail_id" => $pr_company_plot["company_id"],
+									"Company_plot_id" => $pr_company_plot["pid"],
+	                                "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
+	                                "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
+	                                "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
+								);
+								
+								break;
+							}
+						}
+					}
+				}
+			}
+			/*
+
 			// get common values from json from table tbl_tdrawdata
 			$stmt = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%' and raw_data->'$.plot_details[*].Floor' like '%".$floor_no."%'");
 			$stmt->execute();
@@ -916,9 +1113,9 @@ if(isset($_REQUEST['action']))
 
 			// get plot details from pr_company_plots
 			if($plotting_pattern=="Series"){
-				$stmt_company_plot = $obj->con1->prepare("SELECT pid, company_id, plot_no, floor, road_no, plot_status, plot_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=?	");
+				$stmt_company_plot = $obj->con1->prepare("SELECT pid, company_id, plot_no, floor, road_no, plot_status, plot_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=?");
 				$stmt_company_plot->bind_param("sii",$plot_no,$floor_no,$estate_id);
-			}
+			}	
 			else if($plotting_pattern=="Road"){
 				$stmt_company_plot = $obj->con1->prepare("SELECT pid, company_id, plot_no, floor, road_no, plot_status, plot_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=?	and road_no=?");
 				$stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$estate_id,$road_no);
@@ -1022,7 +1219,7 @@ if(isset($_REQUEST['action']))
 						}
 					}
 				}
-			}
+			}*/
 		}
 		else{
 			$details = Array (
@@ -1926,7 +2123,6 @@ if(isset($_REQUEST['action']))
 		{	
 
 			$temp=array();
-			//echo "estate name=".$ind_estate["industrial_estate"];
 			$location=explode(",",$ind_estate["location"]);
 			array_push($temp,$ind_estate["industrial_estate"]);
 			array_push($temp,$location[0]);
@@ -1983,7 +2179,8 @@ if(isset($_REQUEST['action']))
 		$html="";
 		$estate_id=$_REQUEST['estate_id'];
 
-		$stmt_estate = $obj->con1->prepare("SELECT i1.*,a1.plotting_pattern FROM tbl_industrial_estate i1 , pr_add_industrialestate_details a1 where i1.id=a1.industrial_estate_id and i1.id=?");
+		//$stmt_estate = $obj->con1->prepare("SELECT i1.*,a1.plotting_pattern FROM tbl_industrial_estate i1 , pr_add_industrialestate_details a1 where i1.id=a1.industrial_estate_id and i1.id=?");
+		$stmt_estate = $obj->con1->prepare("SELECT a1.plotting_pattern FROM pr_add_industrialestate_details a1 where i1.id=a1.industrial_estate_id and a1.id=?");
 		$stmt_estate->bind_param("i",$estate_id);
 		$stmt_estate->execute();
 		$estate_result = $stmt_estate->get_result();
@@ -2006,32 +2203,17 @@ if(isset($_REQUEST['action']))
 				}
 			}
 			else if($plotting_pattern=="Series"){
-				$plot_array = array();
+				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and company_id IS NULL order by abs(plot_no)");
+		        $stmt_plot->bind_param("is",$estateid_est);
+		        $stmt_plot->execute();
+		        $plot_res = $stmt_plot->get_result();
+		        $stmt_plot->close();
 
-				$stmt_plot = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%'");
-				$stmt_plot->execute();
-				$plot_res = $stmt_plot->get_result();
-				$stmt_plot->close();
+		        $html='<option value="">Select Plot No.</option>';
+		        while($plot = mysqli_fetch_array($plot_res)){
+		        	$html.='<option value="'.$plot['plot_no'].'">'.$plot['plot_no'].'</option>';
+		        }
 
-				$html='<option value="">Select Plot No.</option>';
-				while($plot = mysqli_fetch_array($plot_res)){
-					$raw_data=json_decode($plot["raw_data"]);
-					$post_fields=$raw_data->post_fields;
-					if(isset($raw_data->plot_details)){
-						$plot_details=$raw_data->plot_details;
-						asort($plot_details);
-						if($post_fields->IndustrialEstate==$estate_res["industrial_estate"] && $post_fields->Taluka==$estate_res["taluka"]){
-							foreach ($plot_details as $pd) {
-								if($pd->Floor == '0'){
-									$plot_array[] = $pd->Plot_No;
-								} } }
-					}
-				}
-
-				sort($plot_array);
-				foreach($plot_array as $plot_no){
-					$html.='<option value="'.$plot_no.'">'.$plot_no.'</option>';	
-				}	
 			}
 
 			echo $html."@@@@@".$plotting_pattern;
@@ -2049,36 +2231,16 @@ if(isset($_REQUEST['action']))
 		$road_no=$_REQUEST['road_no'];
 		$plot_array = array();
 
-		$stmt_estate = $obj->con1->prepare("SELECT i1.*,a1.plotting_pattern FROM tbl_industrial_estate i1 , pr_add_industrialestate_details a1 where i1.id=a1.industrial_estate_id and i1.id=?");
-		$stmt_estate->bind_param("i",$estate_id);
-		$stmt_estate->execute();
-		$estate_res = $stmt_estate->get_result()->fetch_assoc();
-		$stmt_estate->close();
+		$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and road_no=? and company_id IS NULL order by abs(plot_no)");
+        $stmt_plot->bind_param("is",$estate_id,$road_no);
+        $stmt_plot->execute();
+        $plot_res = $stmt_plot->get_result();
+        $stmt_plot->close();
 
-		$stmt_plot = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%'");
-		$stmt_plot->execute();
-		$plot_res = $stmt_plot->get_result();
-		$stmt_plot->close();
-
-		$html='<option value="">Select Plot No.</option>';
-		while($plot = mysqli_fetch_array($plot_res)){
-			$raw_data=json_decode($plot["raw_data"]);
-			$post_fields=$raw_data->post_fields;
-			if(isset($raw_data->plot_details)){
-				$plot_details=$raw_data->plot_details;
-				asort($plot_details);
-				if($post_fields->IndustrialEstate==$estate_res["industrial_estate"] && $post_fields->Taluka==$estate_res["taluka"]){
-					foreach ($plot_details as $pd) {
-						if($pd->Floor == '0' && $pd->Road_No == $road_no){
-							$plot_array[] = $pd->Plot_No;
-						} } }
-			}
-		}
-
-		sort($plot_array);
-		foreach($plot_array as $plot_no){
-			$html.='<option value="'.$plot_no.'">'.$plot_no.'</option>';	
-		}
+        $html='<option value="">Select Plot No.</option>';
+        while($plot = mysqli_fetch_array($plot_res)){
+        	$html.='<option value="'.$plot['plot_no'].'">'.$plot['plot_no'].'</option>';
+        }
 
 		echo $html;
 	}
@@ -2093,77 +2255,38 @@ if(isset($_REQUEST['action']))
 		$floor_array = array();
 		$id ="";
 
-		$all_floors = array(0,1,2,3,4,5,6,7,8,9,10);
-		$used_floor_array = array();
-		$left_floor_array = array();
-
-		$stmt_estate = $obj->con1->prepare("SELECT * FROM tbl_industrial_estate i1 WHERE id=?");
+		$stmt_estate = $obj->con1->prepare("SELECT a1.plotting_pattern FROM pr_add_industrialestate_details a1 where a1.industrial_estate_id=?");
 		$stmt_estate->bind_param("i",$estate_id);
 		$stmt_estate->execute();
-		$estate_res = $stmt_estate->get_result()->fetch_assoc();
+		$estate_result = $stmt_estate->get_result()->fetch_assoc();
 		$stmt_estate->close();
-
-		$stmt_floor = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%'");
+		
+		// to get floors whose company details is blank + other floors left
+		if($plotting_pattern=='Series'){
+			$stmt_floor = $obj->con1->prepare("SELECT all_numbers.number FROM ( SELECT 0 AS number UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and company_id is NOT null ) AS existing_numbers ON all_numbers.number = existing_numbers.floor WHERE existing_numbers.floor IS NULL order by abs(number)");
+		}
+		else if($plotting_pattern=='Road'){
+			$stmt_floor = $obj->con1->prepare("SELECT all_numbers.number FROM ( SELECT 0 AS number UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 ) AS all_numbers LEFT JOIN ( SELECT floor FROM pr_company_plots WHERE industrial_estate_id='".$estate_id."' AND plot_no='".$plot_no."' and road_no='".$road_no."' and company_id is NOT null ) AS existing_numbers ON all_numbers.number = existing_numbers.floor WHERE existing_numbers.floor IS NULL order by abs(number)");
+		}
+		
 		$stmt_floor->execute();
 		$floor_res = $stmt_floor->get_result();
 		$stmt_floor->close();
 
-		while($floor=mysqli_fetch_array($floor_res)){
-			$row_data=json_decode($floor["raw_data"]);
-			$post_fields = $row_data->post_fields;
-			if($post_fields->Taluka==$estate_res['taluka'] && $post_fields->IndustrialEstate==$estate_res['industrial_estate'] && $post_fields->GST_No==""){
-				if($post_fields->Premise=="" && $post_fields->Firm_Name=="" && $post_fields->Contact_Name=="" && $post_fields->Mobile_No=="" && $row_data->Constitution=="" && $post_fields->Category=="" && $post_fields->Segment=="" && $row_data->Status=="" && $post_fields->source=="" && $post_fields->Source_Name=="" && $post_fields->Remarks=="" && $row_data->Image==""){
-					$plot_details=$row_data->plot_details;
-					foreach ($plot_details as $pd) {
-						if($pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
-							$id = $floor["id"];
-							$floor_array[$id] = $pd->Floor;
-						}
-					}
+		if(mysqli_num_rows($floor_res)>0){
+			while($floor=mysqli_fetch_array($floor_res)){
+				if($floor["number"]=='0'){
+					$html.='<option value="'.$floor["number"].'">Ground Floor</option>';
 				}
-			}
+				else{
+					$html.='<option value="'.$floor["number"].'">'.$floor["number"].'</option>';
+				}
+			}	
+		}
+		else{
+			$html.='<option value="">Select Floor No.</option>';
 		}
 
-		$stmt_floor1 = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%' and raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%'");
-		$stmt_floor1->execute();
-		$floor1_res = $stmt_floor1->get_result();
-		$stmt_floor1->close();
-
-	    while($floor_used= mysqli_fetch_array($floor1_res)){
-			$row_data=json_decode($floor_used["raw_data"]);
-			$post_fields = $row_data->post_fields;
-			$plot_details = $row_data->plot_details;
-			foreach ($plot_details as $pd) {
-				if($pd->Plot_No==$plot_no && $pd->Road_No==$road_no){
-					$used_floor_array[] = $pd->Floor;
-	      		}
-	      	}
-	    }
-
-	    $left_floor_array=array_udiff($all_floors,$used_floor_array,function ($a,$b){
-			if ($a==$b){ return 0; }
-			  return ($a>$b)?1:-1;
-			});
-
-	    $no_data_key = "";
-
-		$html='<option value="">Select Floor No.</option>';
-		foreach($floor_array as $key => $floor_no){
-			if($floor_no=='0'){
-				$html.='<option value="'.$key.','.$floor_no.'">Ground Floor</option>';
-			}
-			else{
-				$html.='<option value="'.$key.','.$floor_no.'">'.$floor_no.'</option>';
-			}
-		}
-		foreach($left_floor_array as $floor_no){
-			if($floor_no=='0'){
-				$html.='<option value="'.$no_data_key.','.$floor_no.'">Ground Floor</option>';
-			}
-			else{
-				$html.='<option value="'.$no_data_key.','.$floor_no.'">'.$floor_no.'</option>';
-			}
-		}
 		echo $html;
   	}
 
@@ -2211,6 +2334,108 @@ if(isset($_REQUEST['action']))
 			$html.='<option value="'.$estate["id"].'">'.$estate["industrial_estate"].'</option>';
 		}
 		echo $html;
+	}
+
+
+	// company_add_plot_est
+	if($_REQUEST['action']=="company_plot_est_grid")
+	{	
+		$html="";
+		$state=$_REQUEST['state'];
+		$city=$_REQUEST['city'];
+		$taluka=$_REQUEST['taluka'];
+		$area=$_REQUEST['area'];
+		$ind_estate=$_REQUEST['ind_estate'];
+		$estate_id=$_REQUEST['estate_id'];
+		$user_id=$_REQUEST['user_id'];
+
+		//echo "SELECT id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.Factory_Address' as factory_address, r1.raw_data->>'$.post_fields.Mobile_No' as mobile_no from tbl_tdrawdata r1 where r1.raw_data->'$.post_fields.Taluka'='".$taluka."' and r1.raw_data->'$.post_fields.Area'='".$area."' and r1.raw_data->'$.post_fields.IndustrialEstate'='".$ind_estate."' and JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='' and id not in (SELECT rawdata_id from pr_company_details)";
+
+		//$stmt = $obj->con1->prepare("SELECT id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.Factory_Address' as factory_address, r1.raw_data->>'$.post_fields.Mobile_No' as mobile_no from tbl_tdrawdata r1 where r1.raw_data->'$.post_fields.Taluka'='".$taluka."' and r1.raw_data->'$.post_fields.Area'='".$area."' and r1.raw_data->'$.post_fields.IndustrialEstate'='".$ind_estate."' and JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='' and id not in (SELECT rawdata_id from pr_company_details)");
+		$stmt = $obj->con1->prepare("SELECT r1.id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.Factory_Address' as factory_address, r1.raw_data->>'$.post_fields.Mobile_No' as mobile_no, (select stage END from tbl_tdrawassign where inq_id=r1.id order by id desc LIMIT 1) stage, (select CASE WHEN stage='lead' THEN 'Positive' WHEN stage='badlead' THEN 'Negative' ELSE 'Existing Client' END from tbl_tdrawassign where inq_id=r1.id order by id desc LIMIT 1) stage1 from tbl_tdrawdata r1 where r1.raw_data->'$.post_fields.Taluka'='".$taluka."' and r1.raw_data->'$.post_fields.Area'='".$area."' and r1.raw_data->'$.post_fields.IndustrialEstate'='".$ind_estate."' and JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='' and r1.id not in (SELECT rawdata_id from pr_company_details)");
+		$stmt->execute();
+		$res = $stmt->get_result();
+		$stmt->close();
+
+		$html='<div class="row">
+					<div class="col mb-3"><label class="form-label">Taluka : '.$taluka.'</label></div>
+                	<div class="col mb-3"><label class="form-label">Area : '.$area.'</label></div>
+                	<div class="col mb-3"><label class="form-label">Industrial Estate : '.$ind_estate.'</label></div>
+            </div>
+			<div class="card">
+      			<h5 class="card-header">Records</h5>
+      			<div class="table-responsive text-nowrap">
+        			<table class="table table-hover" id="table_id">
+			          <thead>
+			            <tr>
+			              <th>Srno</th>
+			              <th>Company Name</th>
+			              <th>Employee Name</th>
+			              <th>Factory Address</th>
+			              <th>Status</th>
+			              <th>Action</th>
+			            </tr>
+			          </thead>
+			          <tbody class="table-border-bottom-0">';
+			          $i=1;
+		while($data=mysqli_fetch_array($res))
+	    {
+			// $stmt_status = $obj->con1->prepare("SELECT stage FROM `tbl_tdrawassign` WHERE inq_id=? order by id desc LIMIT 1");
+			// $stmt_status->bind_param("i",$data['id']);
+			// $stmt_status->execute();
+			// $result_status = $stmt_status->get_result()->fetch_assoc();
+			// $stmt_status->close();
+
+	        //if($result_status["stage"]=='applicationstart' || $result_status["stage"]=='schemesstarted')
+	        if($data["stage"]=='applicationstart' || $data["stage"]=='schemesstarted')
+	        {
+	          $stmt_stage = $obj->con1->prepare("select a1.tatassign_id, a1.tatassign_status ,a1.tatassign_user_id,u1.name as emp_name from tbl_tdtatassign a1,tbl_users u1 where a1.tatassign_user_id=u1.id and  a1.tatassign_inq_id=?  order by a1.tatassign_id desc limit 1");
+	          $stmt_stage->bind_param("i",$data["id"]);
+	          $stmt_stage->execute();
+	          $stage_result = $stmt_stage->get_result()->fetch_assoc();
+	          $stmt_stage->close();
+	          $emp_name=$stage_result["emp_name"];
+	        }
+	        else
+	        {
+	          $stmt_stage = $obj->con1->prepare("select r1.id, r1.stage ,r1.user_id,u1.name as emp_name from tbl_tdrawassign r1,tbl_users u1 where r1.user_id=u1.id and r1.inq_id=? order by r1.id desc limit 1; ");
+	          $stmt_stage->bind_param("i",$data["id"]);
+	          $stmt_stage->execute();
+	          $stage_result = $stmt_stage->get_result()->fetch_assoc();
+	          $stmt_stage->close();
+	          $emp_name=$stage_result["emp_name"];
+
+	        }
+				$html.='<tr>
+		              <td>'.$i.'</td>
+		              <td>'.$data["firm_name"].'</td>
+		              <td>'.$emp_name.'</td>
+		              <td>'.$data["factory_address"].'</td>
+		              <td>';
+		                  /*if($result_status["stage"]=='lead'){
+		                    $html.='Positive';
+		                  }
+		                  else if($result_status["stage"]=='badlead'){
+		                    $html.='Negative';
+		                  }
+		                  else{
+		                    $html.='Existing Client';
+		                  }*/
+		                  $html.=$data["stage1"];
+		            $html.='</td>
+		              <td>
+		                	<a href="javascript:editdata(\''.$estate_id.'\',\''.$data["id"].'\',\''.base64_encode($state) .'\',\''.base64_encode($city) .'\',\''.base64_encode($taluka) .'\',\''.base64_encode($area) .'\',\''.base64_encode($ind_estate) .'\',\''.base64_encode($data["firm_name"]) .'\',\''.$user_id .'\',\''.base64_encode($data["stage1"]) .'\',\''.base64_encode($data["factory_address"]) .'\',\''.base64_encode($emp_name) .'\');"><i class="bx bx-edit-alt me-1"></i> </a>
+		              </td>
+		            </tr>';
+		                $i++;
+		              }
+		            
+		          $html.='</tbody>
+		        </table>
+		      </div>
+		    </div>';
+		echo $html;
+		//<a href="javascript:editdata(\''$res_est["estate_id"]'\',\''$data["id"]'\',\''base64_encode($state) '\',\''base64_encode($city) '\',\''base64_encode($taluka) '\',\''base64_encode($area) '\',\''base64_encode($ind_estate) '\',\''base64_encode($data["firm_name"]) '\',\''$user_id '\',\''base64_encode($result_status["stage"]) '\',\''base64_encode($data["factory_address"]) '\');"><i class="bx bx-edit-alt me-1"></i> </a>
 	}
 
 	// process_gogtp_ir
