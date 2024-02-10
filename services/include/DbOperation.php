@@ -684,7 +684,7 @@ public function delete_tbl_tdrawdata($delete_id)
 // update table tbl_tdrawdata
 public function update_tbl_tdrawdata_contact($contact_name,$mobile_no,$plot_status,$user_id,$id)
 {
-    $stmt = $this->con->prepare("UPDATE `tbl_tdrawdata` SET raw_data=JSON_SET(raw_data,'$.post_fields.Contact_Name','".$contact_name."','$.post_fields.Mobile_No','".$mobile_no."','$.plot_details[0].Plot_Status','".$plot_status."'), userid='".$user_id."' WHERE id='".$insert_id."'");
+    $stmt = $this->con->prepare("UPDATE `tbl_tdrawdata` SET raw_data=JSON_SET(raw_data,'$.post_fields.Contact_Name','".$contact_name."','$.post_fields.Mobile_No','".$mobile_no."','$.plot_details[0].Plot_Status','".$plot_status."'), userid='".$user_id."' WHERE id='".$id."'");
     $Resp=$stmt->execute();
     $num_rows_aff = mysqli_affected_rows($this->con);
     $stmt->close();

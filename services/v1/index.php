@@ -3740,9 +3740,9 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
 
         if($next_status=='update'){
             // if floor already exists then only update Contact_Name, Mobile_No and Plot_Status
-            if(mysqli_num_rows($plot_search)>0){
-              $insert_id="";
-              while($plot_search_res = mysqli_fetch_array($plot_search)){
+            if(mysqli_num_rows($result_plot_search)>0){
+              $result_rawdata_id="";
+              while($plot_search_res = mysqli_fetch_array($result_plot_search)){
                 $row_data_search=json_decode($plot_search_res["raw_data"]);
 
                 $post_fields = $row_data_search->post_fields;
@@ -3757,7 +3757,7 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
                 }
               }
             }
-            $res = update_tbl_tdrawdata_contact($contact_name,$mobile_no,$plot_status,$user_id,$result_rawdata_id);
+            $res = $db->update_tbl_tdrawdata_contact($contact_name,$mobile_no,$plot_status,$user_id,$result_rawdata_id);
         }
         else if($next_status=='insert'){
         // if floor does not exist then create new json
@@ -3768,7 +3768,7 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
                 "Source_Name" => "",
                 "Contact_Name" => $post_fields->Contact_Name,
                 "Mobile_No" => $post_fields->Mobile_No,
-                "Email" => "",
+                "Email" => "",  
                 "Designation_In_Firm" => "",
                 "Firm_Name" => "",
                 "GST_No" => "",
@@ -4020,7 +4020,7 @@ $app->post('/followups_list','authenticateUser', function () use ($app) {
 
         foreach ($organizedData as $date => $entries) {
             $data['data'][] = [
-                'followup_date' => date_format($date,"d-m-Y"),
+                'followup_date' => date('d-m-Y',strtotime($date)),
                 'entries' => $entries,
             ];
         }
