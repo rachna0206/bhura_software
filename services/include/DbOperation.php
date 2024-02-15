@@ -490,7 +490,7 @@ public function get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pa
             $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         }
         else if($filter=="No Filter"){
-            $stmt_floor = $this->con->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         } 
         $stmt_floor->bind_param("is",$estate_id,$plot_no);
     }
@@ -511,7 +511,7 @@ public function get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pa
             $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
         }
         else if($filter=="No Filter"){
-            $stmt_floor = $this->con->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
         } 
         $stmt_floor->bind_param("iss",$estate_id,$road_no,$plot_no);
     }
@@ -1064,6 +1064,7 @@ public function followups_list($inq_id)
 // insert into tbl_tdrawassign
 public function insert_reminder($inq_id,$user_id,$reminder_dt,$reminder_text,$reminder_summary,$reminder_source)
 {
+    
     $stmt_status = $this->con->prepare("INSERT INTO `tbl_tdreminder`(`inq_id`, `user_id`, `reminder_dt`, `reminder_text`, `reminder_summary`, `reminder_source`) VALUES (?,?,?,?,?,?)");
     $stmt_status->bind_param("iissss",$inq_id,$user_id,$reminder_dt,$reminder_text,$reminder_summary,$reminder_source);
     $Resp=$stmt_status->execute();
