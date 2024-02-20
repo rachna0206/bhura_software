@@ -1065,6 +1065,7 @@ public function followups_list($inq_id)
 public function insert_reminder($inq_id,$user_id,$reminder_dt,$reminder_text,$reminder_summary,$reminder_source)
 {
     
+    
     $stmt_status = $this->con->prepare("INSERT INTO `tbl_tdreminder`(`inq_id`, `user_id`, `reminder_dt`, `reminder_text`, `reminder_summary`, `reminder_source`) VALUES (?,?,?,?,?,?)");
     $stmt_status->bind_param("iissss",$inq_id,$user_id,$reminder_dt,$reminder_text,$reminder_summary,$reminder_source);
     $Resp=$stmt_status->execute();

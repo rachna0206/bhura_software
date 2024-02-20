@@ -2429,7 +2429,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                     "source" => $post_fields->source,
                     "Source_Name" => $post_fields->Source_Name,
                     "Remarks" => $post_fields->Remarks,
-                    "Image" => ($image=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$image,
+                    "Image" => ($res_company_plot['image']=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$res_company_plot['image'],
                     "Company_detail_id" => $res_company_plot["company_id"],
                     "Company_plot_id" => $res_company_plot["pid"],
                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
@@ -2515,7 +2515,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                                     "source" => $post_fields->source,
                                     "Source_Name" => $post_fields->Source_Name,
                                     "Remarks" => $post_fields->Remarks,
-                                    "Image" => ($image=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$image,
+                                    "Image" => ($res_company_plot['image']=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$res_company_plot['image'],
                                     "Company_detail_id" => $res_company_plot["company_id"],
                                     "Company_plot_id" => $res_company_plot["pid"],
                                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
@@ -3126,11 +3126,14 @@ $app->post('/add_additional_plot','authenticateUser', function () use ($app) {
         // Encode array to json
         $json = json_encode($cp);
 
-        $resp_tdrawdata=$db->tbl_tdrawdata($json,$user_id);
+        $resp_tdrawdata_id=$db->insert_tbl_tdrawdata($json,$user_id);
 
         // insert into pr_company_plot
         $resp_company_plot=$db->company_plot_insert($additional_plot_no,$floor,$road_number,$plot_id,$estate_id,$user_id);
-
+        
+        $result_estate=$db->get_ind_estate($estate_id);
+        
+        $res_company_plot=$db->get_pr_company_details($result_estate['plotting_pattern'],$estate_id,$additional_plot_no,$floor,$road_no);
 
         // dropdowns
         $data["data"]["Refill Data"] = array();
@@ -3184,6 +3187,10 @@ $app->post('/add_additional_plot','authenticateUser', function () use ($app) {
         $refill_data['filter'] = 'None';
         $refill_data['plot_no'] = $additional_plot_no;
         $refill_data['floor'] = ($floor=="0")?"Ground Floor":$floor;
+        $refill_data['Id'] = $resp_tdrawdata_id;
+        $refill_data['Plot_Id'] = $res_company_plot['plot_id'];
+        $refill_data['Company_detail_id'] = $res_company_plot['company_id'];
+        $refill_data['Company_plot_id'] = $res_company_plot['pid'];
         
         $refill_data = array_map('utf8_encode', $refill_data);
         array_push($data['data']['Refill Data'], $refill_data);
@@ -3446,7 +3453,7 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
       // Encode array to json
       $json = json_encode($cp);
 
-      $result=$db->tbl_tdrawdata($json,$user_id,$id);
+      $insertid_tdrawdata=$db->insert_tbl_tdrawdata($json,$user_id);
       
       $plot_id = '1';
 
@@ -3461,6 +3468,10 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
     }
 
     if($floor_confirmation=='Same Owner But Different Company' || $floor_confirmation=='Different Company'){
+        $result_estate=$db->get_ind_estate($estate_id);
+
+        $res_company_plot=$db->get_pr_company_details($result_estate['plotting_pattern'],$estate_id,$plot_no,$floor,$road_no);
+
         // dropdowns
         $data["data"]["Refill Data"] = array();
         $data["data"]["Industrial Estate"] = array();
@@ -3518,6 +3529,10 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
             $refill_data['contact_person'] = $post_fields->Contact_Name;
             $refill_data['contact_no'] = $post_fields->Mobile_No;
         }
+        $refill_data['Id'] = $insertid_tdrawdata;
+        $refill_data['Plot_Id'] = $res_company_plot['plot_id'];
+        $refill_data['Company_detail_id'] = $res_company_plot['company_id'];
+        $refill_data['Company_plot_id'] = $res_company_plot['pid'];
 
         $refill_data = array_map('utf8_encode', $refill_data);
         array_push($data['data']['Refill Data'], $refill_data);
@@ -3837,6 +3852,9 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
             $result_company_plot=$db->company_plot_insert($plot_no,$floor,$road_no,$plot_id,$estate_id,$user_id,$plot_status,$result_companydetail_id);
         }
 
+        $result_estate=$db->get_ind_estate($estate_id);
+        $res_company_plot=$db->get_pr_company_details($result_estate['plotting_pattern'],$estate_id,$plot_no,$floor,$road_no);
+
 
         // dropdowns
         $data["data"]["Refill Data"] = array();
@@ -3893,6 +3911,10 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
         $refill_data['plot_status'] = $plot_status;
         $refill_data['contact_person'] = $post_fields->Contact_Name;
         $refill_data['contact_no'] = $post_fields->Mobile_No;
+        $refill_data['Id'] = $result_rawdata_id;
+        $refill_data['Plot_Id'] = $res_company_plot['plot_id'];
+        $refill_data['Company_detail_id'] = $res_company_plot['company_id'];
+        $refill_data['Company_plot_id'] = $res_company_plot['pid'];
 
         $refill_data = array_map('utf8_encode', $refill_data);
         array_push($data['data']['Refill Data'], $refill_data);
