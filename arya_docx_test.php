@@ -57,27 +57,36 @@ function fill_file($inq_id, $service_id, $stage_id, $file_id, $doc_file, $doc_ty
     if (mysqli_num_rows($result) != 0) {
         $result = mysqli_fetch_array($result);
         $row_data = json_decode($result["app_data"]);
-        $contact_details = $row_data->contact_details;
-        $company_details = $row_data->company_details;
-        $bank_details = $row_data->bank_details;
-        foreach ($contact_details as $key => $value) {
-            if (!is_object($value) && !is_array($value)) {
-                $templateProcessor->setValue($key, $value);
+        if (isset($row_data->contact_details)) {
+            $contact_details = $row_data->contact_details;
+
+            foreach ($contact_details as $key => $value) {
+                if (!is_object($value) && !is_array($value)) {
+                    $templateProcessor->setValue($key, $value);
+                }
+            }
+        }
+        if (isset($row_data->company_details)) {
+            $company_details = $row_data->company_details;
+            foreach ($company_details as $key => $value) {
+                if (!is_object($value) && !is_array($value)) {
+                    $templateProcessor->setValue($key, $value);
+                }
+
+            }
+        }
+        if (isset($row_data->bank_details)) {
+            $bank_details = $row_data->bank_details;
+            foreach ($bank_details as $key => $value) {
+                if (!is_object($value) && !is_array($value)) {
+                    $templateProcessor->setValue($key, $value);
+                }
+
             }
         }
 
-        foreach ($company_details as $key => $value) {
-            if (!is_object($value) && !is_array($value)) {
-                $templateProcessor->setValue($key, $value);
-            }
 
-        }
-        foreach ($bank_details as $key => $value) {
-            if (!is_object($value) && !is_array($value)) {
-                $templateProcessor->setValue($key, $value);
-            }
 
-        }
     }
 
     $templateProcessor->saveAs($outputFileName);
@@ -113,7 +122,7 @@ function excel_fill($inq_id, $service_id, $stage_id, $file_id, $doc_file)
     $stmt_files->close();
 
     // $json = json_encode($json);
-    $templateFileName = "pr_file_format\\".$doc_file;
+    $templateFileName = "pr_file_format\\" . $doc_file;
     $outputFileName = $doc_file;
 
     $template = IOFactory::load($templateFileName);
