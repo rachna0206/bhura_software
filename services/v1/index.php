@@ -2841,8 +2841,11 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
     $existing_expansion_status = isset($data_request->existing_expansion_status)?$data_request->existing_expansion_status:"";
     $loan_sanction = isset($data_request->loan_sanction)?$data_request->loan_sanction:"";
     $completion_date = isset($data_request->completion_date)?$data_request->completion_date:"";
+    $filter = isset($data_request->filter)?$data_request->filter:"";
     $badlead_type = "lead";
     $PicFileName="";
+
+    $completion_date = date("Y-m-d", strtotime($completion_date));
 
     $db = new DbOperation();
     $data = array();
@@ -2937,13 +2940,17 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
 
     $json_object = json_encode($row_data);
 
-    $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id);
+    $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter);
 
     if($result==-1){
         $data['message'] = "An error occurred";
         $data['success'] = false;
     }
     else{
+        if($completion_date!=""){
+            $db->insert_tdrawdata_cdates($id,$user_id,$completion_date);
+        }
+
         if($result>0){
             $result_visit_count=$db->pr_visit_count($post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id,$result);
 
@@ -3282,22 +3289,41 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
         
         $row_data=json_decode($res_rawdata["raw_data"]);
         $post_fields = $row_data->post_fields;
-        $plot_details = $row_data->plot_details;
-        $arr_count = count($plot_details);
-        $last_plot_id = $plot_details[$arr_count-1]->Plot_Id;
 
-        $new_plot_detail=Array(
-            "Plot_No" => $plot_no,
-            "Floor" => $floor,
-            "Road_No" => $road_no,
-            "Plot_Status" => $plot_status,
-            "Plot_Id" => $last_plot_id+1,
-        );  
-        array_push($row_data->plot_details, $new_plot_detail);
+        if(isset($row_data->plot_details)){
+            $plot_details = $row_data->plot_details;
+            $arr_count = count($plot_details);
+            $last_plot_id = $plot_details[$arr_count-1]->Plot_Id;
+
+            $plot_id = $last_plot_id+1;
+
+            $new_plot_detail=Array(
+              "Plot_No" => $plot_no,
+              "Floor" => $floor,
+              "Road_No" => $road_no,
+              "Plot_Status" => $plot_status,
+              "Plot_Id" => $plot_id,
+            );  
+            array_push($row_data->plot_details, $new_plot_detail);
+        }
+        else{
+            $plot_id = "1";
+
+            $row_data->plot_details=Array(
+              Array(
+                "Plot_No" => $plot_no,
+                "Floor" => $floor,
+                "Road_No" => $road_no,
+                "Plot_Status" => $plot_status,
+                "Plot_Id" => $plot_id,
+              ),
+            );  
+        }
 
         $json_object = json_encode($row_data);
 
-        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id);
+        $filter_samecomp = 'same_company';
+        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter_samecomp);
       
         // for pr_visit_count table
         // if the data is updated by an employee on different date then count+1
@@ -3679,30 +3705,35 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
             $arr_count = count($plot_details);
             $last_plot_id = $plot_details[$arr_count-1]->Plot_Id;
 
+            $plot_id = $last_plot_id+1;
+
             $new_plot_detail=Array(
               "Plot_No" => $plot_no,
               "Floor" => $floor,
               "Road_No" => $road_no,
               "Plot_Status" => $plot_status,
-              "Plot_Id" => ($last_plot_id+1),
+              "Plot_Id" => $plot_id,
             );  
             array_push($row_data->plot_details, $new_plot_detail);
         }
         else{
+            $plot_id = "1";
+
             $row_data->plot_details=Array(
               Array(
                 "Plot_No" => $plot_no,
                 "Floor" => $floor,
                 "Road_No" => $road_no,
                 "Plot_Status" => $plot_status,
-                "Plot_Id" => "1",
+                "Plot_Id" => $plot_id,
               ),
             );  
         }
         
         $json_object = json_encode($row_data);
 
-        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id);
+        $filter_samecomp = 'same_company';
+        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter_samecomp);
 
         if($result==-1){
             $data['message'] = "An error occurred";
@@ -3735,8 +3766,6 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
             }
           }
         }
-
-        $plot_id = $last_plot_id+1;
 
         // insert or update in pr_company_plot
         if($next_status=='update'){
@@ -4099,7 +4128,7 @@ $app->post('/add_followup','authenticateUser', function () use ($app) {
 
         $resp = $db->insert_followup($user_id,$inq_id,$followup_text,$source,$followup_date);
         $db->insert_followup($user_id,$inq_id,$followup_text_application,$source_application,$followup_date);
-        $db->insert_rawassign($inq_id,$admin_userid,$stage_application);
+        $db->insert_rawassign($inq_id,$user_id,$stage_application);
     }
     else if(strtolower($next_action)=="bad lead (discard)"){
         $followup_text_badlead = $res_username['name']." has marked lead as BAD LEAD. <br />Reason: ".$reason." <br />Remark: ".$remark;

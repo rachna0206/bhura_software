@@ -438,7 +438,7 @@ public function get_plot_no($filter,$estate_id)
         $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
     }
     else if($filter=="No Filter"){
-        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? order by abs(p1.plot_no)");
     }
         
     $stmt_plot->bind_param("i",$estate_id);    
@@ -490,7 +490,7 @@ public function get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pa
             $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         }
         else if($filter=="No Filter"){
-            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
         } 
         $stmt_floor->bind_param("is",$estate_id,$plot_no);
     }
@@ -511,7 +511,7 @@ public function get_plot_floor($plot_no,$road_no,$filter,$estate_id,$plotting_pa
             $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
         }
         else if($filter=="No Filter"){
-            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+            $stmt_floor = $this->con->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
         } 
         $stmt_floor->bind_param("iss",$estate_id,$road_no,$plot_no);
     }
@@ -551,7 +551,7 @@ public function get_road_plot($filter,$estate_id,$road_no)
         $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
     }
     else if($filter=="No Filter"){
-        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status NOT IN ('Positive','Negative','Existing Client') and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+        $stmt_plot = $this->con->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
     } 
 
     $stmt_plot->bind_param("is",$estate_id,$road_no);
@@ -656,10 +656,17 @@ public function get_rawdata($id)
 }
 
 // update table tbl_tdrawdata
-public function update_tbl_tdrawdata($json,$user_id,$id)
+public function update_tbl_tdrawdata($json,$user_id,$id,$filter)
 {
-    $stmt = $this->con->prepare("update tbl_tdrawdata set raw_data=?, userid=? where id=?");
-    $stmt->bind_param("sii",$json,$user_id,$id);
+    if(strtolower($filter)=="visit pending" || strtolower($filter)=="none"){
+      $todays_date = date("Y-m-d H:i:s");
+      $stmt = $this->con->prepare("update tbl_tdrawdata set raw_data=?, userid=?, raw_data_ts=? where id=?");
+      $stmt->bind_param("sisi",$json,$user_id,$todays_date,$id);
+    }
+    else{
+      $stmt = $this->con->prepare("update tbl_tdrawdata set raw_data=?, userid=? where id=?");
+      $stmt->bind_param("sii",$json,$user_id,$id);
+    }
     $Resp=$stmt->execute();
     $num_rows_aff = mysqli_affected_rows($this->con);
     $stmt->close();
@@ -1070,6 +1077,35 @@ public function insert_reminder($inq_id,$user_id,$reminder_dt,$reminder_text,$re
     $stmt_status->bind_param("iissss",$inq_id,$user_id,$reminder_dt,$reminder_text,$reminder_summary,$reminder_source);
     $Resp=$stmt_status->execute();
     $stmt_status->close();
+}
+
+// insert into tbl_tdrawdata_cdates
+public function insert_tdrawdata_cdates($inq_id,$user_id,$completion_date)
+{
+    $stmt = $this->con->prepare("SELECT * FROM `tbl_tdrawdata_cdates` where inq_id=? ORDER BY id DESC LIMIT 1");
+    $stmt->bind_param("i",$inq_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+
+    $insert_flag = false;
+
+    if(mysqli_num_rows($result)>0){
+        $date_res = $result->fetch_assoc();
+        if($date_res["cdate"]!=$completion_date){
+            $insert_flag=true;
+        }
+    }
+    else{
+        $insert_flag=true;
+    }
+
+    if($insert_flag==true){
+        $stmt_completion_dt = $this->con->prepare("INSERT INTO `tbl_tdrawdata_cdates`(`inq_id`, `user_id`, `cdate`) VALUES (?,?,?)");
+        $stmt_completion_dt->bind_param("iis",$inq_id,$user_id,$completion_date);
+        $Resp=$stmt_completion_dt->execute();
+        $stmt_completion_dt->close();
+    }
 }
 
 // get state list

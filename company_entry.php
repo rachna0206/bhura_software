@@ -73,7 +73,28 @@ if(isset($_REQUEST['btnsubmit']))
   $industrial_estate_id = $_REQUEST['industrial_estate_id'];
   $pr_company_plot_id = $_REQUEST['pr_company_plot_id'];
   $pr_company_detail_id = $_REQUEST['pr_company_detail_id'];
+
+  $filter = $_REQUEST['filter'];
+
+
+  if($status=='Positive'){
+    $loan_sanction = isset($_COOKIE['loan_sanction'])?$_COOKIE['loan_sanction']:(($_REQUEST['sanction_hidden']!='none')?$_REQUEST['sanction_hidden']:"");
+    $completion_date = isset($_COOKIE['completion_date'])?$_COOKIE['completion_date']:(($_REQUEST['completion_date_hidden']!='none')?$_REQUEST['completion_date_hidden']:"");
+    $expansion_status = "";
+  }
+  else if($status=='Existing Client'){
+    $loan_sanction = "";
+    $completion_date = "";
+    $expansion_status = isset($_COOKIE['expansion_status'])?$_COOKIE['expansion_status']:(($_REQUEST['expansion_hidden']!='none')?$_REQUEST['expansion_hidden']:"");
+  }
+  else{
+    $loan_sanction = "";
+    $completion_date = "";
+    $expansion_status = "";
+  }
   
+  // exit();
+
   if($img!=""){
     unlink("gst_image/".$old_img);  
     //rename file for gst image
@@ -137,18 +158,18 @@ if(isset($_REQUEST['btnsubmit']))
   $post_fields->Source_Name = $source_name;
   $row_data->Image = $PicFileName;
   $post_fields->Remarks = $remark;
-  $post_fields->loan_applied = $_COOKIE['loan_sanction'];
-  $post_fields->Completion_Date = $_COOKIE['completion_date'];
-  $post_fields->Existing_client_status = $_COOKIE['expansion_status'];
+  $post_fields->loan_applied = $loan_sanction;
+  $post_fields->Completion_Date = $completion_date;
+  $post_fields->Existing_client_status = $expansion_status;
   if($row_data->plot_details){
     $plot_details["$plot_index"]->Plot_Status = $plot_status;
   }
 
-  if($_COOKIE['expansion_status']=="positive for expansion")
+  if($expansion_status=="positive for expansion")
   {
     $row_data->Status = "Positive";
   }
-  else if($_COOKIE['expansion_status']=="negative for expansion")
+  else if($expansion_status=="negative for expansion")
   {
     $row_data->Status = "Negative";
   }
@@ -168,13 +189,50 @@ if(isset($_REQUEST['btnsubmit']))
 
   try
   {
-    $stmt = $obj->con1->prepare("update tbl_tdrawdata set raw_data=?, userid=? where id=?");
-    $stmt->bind_param("sii",$json_object,$user_id,$id);
+    if($filter=="visit_pending" || $filter=="none"){
+      $todays_date = date("Y-m-d H:i:s");
+      $stmt = $obj->con1->prepare("update tbl_tdrawdata set raw_data=?, userid=?, raw_data_ts=? where id=?");
+      $stmt->bind_param("sisi",$json_object,$user_id,$todays_date,$id);
+    }
+    else{
+      $stmt = $obj->con1->prepare("update tbl_tdrawdata set raw_data=?, userid=? where id=?");
+      $stmt->bind_param("sii",$json_object,$user_id,$id);
+    }
+    
     $Resp=$stmt->execute();
     
     // for pr_visit_count table
     // if the data is updated by an employee on different date then count+1
     if(mysqli_affected_rows($obj->con1)>0){
+
+      // insert completion date in tbl_tdrawdata_cdates
+      if($completion_date!=""){
+        $stmt_compdt = $obj->con1->prepare("SELECT * FROM `tbl_tdrawdata_cdates` where inq_id=? ORDER BY id DESC LIMIT 1");
+        $stmt_compdt->bind_param("i",$id);
+        $stmt_compdt->execute();
+        $result_compdt = $stmt_compdt->get_result();
+        $stmt_compdt->close();
+
+        $insert_flag = false;
+
+        if(mysqli_num_rows($result_compdt)>0){
+            $date_res = $result_compdt->fetch_assoc();
+            if($date_res["cdate"]!=$completion_date){
+                $insert_flag=true;
+            }
+        }
+        else{
+            $insert_flag=true;
+        }
+
+        if($insert_flag==true){
+            $stmt_completion_dt = $obj->con1->prepare("INSERT INTO `tbl_tdrawdata_cdates`(`inq_id`, `user_id`, `cdate`) VALUES (?,?,?)");
+            $stmt_completion_dt->bind_param("iis",$id,$user_id,$completion_date);
+            $Resp_completion_dt=$stmt_completion_dt->execute();
+            $stmt_completion_dt->close();
+        }
+      }
+
 
       $stmt_count_list = $obj->con1->prepare("SELECT `cid`, `count`, date(`datetime`) as datetime FROM `pr_visit_count` WHERE industrial_estate=? and area=? and taluka=? and company_id=? and employee_id=?");
       $stmt_count_list->bind_param("sssii",$post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id);
@@ -1048,8 +1106,8 @@ if(isset($_REQUEST['btn_modal_additional_plot']))
         "Taluka" => $estate_result_plot['taluka'],
         "Area" => $estate_result_plot['area_id'],
         "IndustrialEstate" => $estate_result_plot['industrial_estate'],
-        "loan_applied" =>$post_fields->loan_applied,
-        "Completion_Date" =>$post_fields->Completion_Date,
+        "loan_applied" =>"",
+        "Completion_Date" =>"",
         "Term_Loan_Amount" => "",
         "CC_Loan_Amount" => "",
         "Under_Process_Bank" => "",
@@ -1105,7 +1163,6 @@ if(isset($_REQUEST['btn_modal_additional_plot']))
     {
       throw new Exception("Problem in adding! ". strtok($obj->con1-> error,  '('));
     }
-    $stmt->close();
   } 
   catch(\Exception  $e) {
     if($obj->con1) {
@@ -1227,6 +1284,9 @@ if(isset($_COOKIE["msg"]) )
           <input type="hidden" name="area" id="area">
           <input type="hidden" name="pr_company_detail_id" id="pr_company_detail_id">
           <input type="hidden" name="pr_company_plot_id" id="pr_company_plot_id">
+          <input type="hidden" name="sanction_hidden" id="sanction_hidden">
+          <input type="hidden" name="completion_date_hidden" id="completion_date_hidden">
+          <input type="hidden" name="expansion_hidden" id="expansion_hidden">
 
             <div class="row">
               <label class="form-label" for="industrial_estate_id">Industrial Estate</label>
@@ -1343,7 +1403,7 @@ if(isset($_COOKIE["msg"]) )
 
               <div class="mb-3">
                 <label class="form-label" for="contact_no">Contact Number</label>
-                <input type="text" class="form-control" name="contact_no" id="contact_no" />
+                <input type="text" class="form-control" name="contact_no" id="contact_no" onkeypress="return event.charCode >= 48 && event.charCode <= 57" maxlength="10"/>
               </div>
 
               <div class="mb-3">
@@ -1388,7 +1448,7 @@ if(isset($_COOKIE["msg"]) )
                   <label class="form-check-label" for="inlineRadio1">Positive</label>
                 </div>
                 <div class="form-check form-check-inline mt-3">
-                  <input class="form-check-input" type="radio" name="status" id="negative" value="Negative" onclick="modal_open_negative()">
+                  <input class="form-check-input" type="radio" name="status" id="negative" value="Negative">
                   <label class="form-check-label" for="inlineRadio1">Negative</label>
                 </div>
               </div>
@@ -1600,7 +1660,7 @@ if(isset($_COOKIE["msg"]) )
     if(estate_id!=null){
       //getPlot(estate_id,filter);
       $('#filter').html('');
-      $('#filter').append('<option value="">None</option>');
+      $('#filter').append('<option value="none">None</option>');
       if(road_no!="null"){
         //getRoadPlots(road_no,estate_id,filter);  
         $('#road_list_div').removeAttr("hidden");
@@ -1876,40 +1936,56 @@ if(isset($_COOKIE["msg"]) )
         $('#segment').val(res['Segment']);
 
         if(res['Status']=="Existing Client"){
-         $('#existing_client').prop("checked","checked");
-         $('#badlead_reasons_div').attr("hidden",true); 
-         if(res['Existing_client_status']=="positive for expansion"){
-          $('#positive_expansion').prop("checked","checked");
-         }  
-         else if(res['Existing_client_status']=="negative for expansion"){
-          $('#negative_expansion').prop("checked","checked");
-         }
+          $('#existing_client').prop("checked","checked");
+          $('#badlead_reasons_div').attr("hidden",true); 
+          if(res['Existing_client_status']=="positive for expansion"){
+            $('#positive_expansion').prop("checked","checked");
+          }  
+          else if(res['Existing_client_status']=="negative for expansion"){
+            $('#negative_expansion').prop("checked","checked");
+          }
+
+          $('#sanction_hidden').val('none');
+          $('#completion_date_hidden').val('none');
+          $('#expansion_hidden').val(res['Existing_client_status']);
         }
         else if(res['Status']=="Positive"){
-         $('#positive').prop("checked","checked"); 
-         $('#badlead_reasons_div').attr("hidden",true);
+          $('#positive').prop("checked","checked"); 
+          $('#badlead_reasons_div').attr("hidden",true);
                 
-         if(res['Loan_Sanction']=="Want to Apply?"){
-          $('#apply').prop("checked","checked");
-         }
-         else if(res['Loan_Sanction']=="Loan Under Process"){
-          $('#under_process').prop("checked","checked");
-         }
-         else if(res['Loan_Sanction']=="Sactioned Loan"){
-          $('#sanctioned').prop("checked","checked");
-         }
-         $('#completion_date').val(res['Completion_Date']);
+          if(res['Loan_Sanction']=="Want to Apply?"){
+            $('#apply').prop("checked","checked");
+          }
+          else if(res['Loan_Sanction']=="Loan Under Process"){
+            $('#under_process').prop("checked","checked");
+          }
+          else if(res['Loan_Sanction']=="Sactioned Loan"){
+            $('#sanctioned').prop("checked","checked");
+          }
+          $('#completion_date').val(res['Completion_Date']);
+
+          $('#sanction_hidden').val(res['Loan_Sanction']);
+          $('#completion_date_hidden').val(res['Completion_Date']);
+          $('#expansion_hidden').val('none');
         }
         else if(res['Status']=="Negative"){
          $('#negative').prop("checked","checked");
          $('#badlead_reasons').val(res['Reason']);
          $('#badlead_reasons_div').removeAttr("hidden");
+
+         $('#sanction_hidden').val('none');
+         $('#completion_date_hidden').val('none');
+         $('#expansion_hidden').val('none');
         }
         else{
           $('#existing_client').prop("checked",false);
           $('#positive').prop("checked",false);
           $('#negative').prop("checked",false);
           $('#badlead_reasons_div').attr("hidden",true);
+
+          $('#sanction_hidden').val('none');
+          $('#completion_date_hidden').val('none');
+          $('#expansion_hidden').val('none');
         }
 
         $('#source').val(res['source']);

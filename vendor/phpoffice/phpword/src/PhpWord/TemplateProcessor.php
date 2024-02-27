@@ -27,6 +27,7 @@ use PhpOffice\PhpWord\Exception\Exception;
 use PhpOffice\PhpWord\Shared\Text;
 use PhpOffice\PhpWord\Shared\XMLWriter;
 use PhpOffice\PhpWord\Shared\ZipArchive;
+use Throwable;
 use XSLTProcessor;
 
 class TemplateProcessor
@@ -135,6 +136,30 @@ class TemplateProcessor
         $this->tempDocumentContentTypes = $this->zipClass->getFromName($this->getDocumentContentTypesName());
     }
 
+    public function __destruct()
+    {
+        // ZipClass
+        if ($this->zipClass) {
+            try {
+                $this->zipClass->close();
+            } catch (Throwable $e) {
+                // Nothing to do here.
+            }
+        }
+        // Temporary file
+        if ($this->tempDocumentFilename && file_exists($this->tempDocumentFilename)) {
+            unlink($this->tempDocumentFilename);
+        }
+    }
+
+    public function __wakeup(): void
+    {
+        $this->tempDocumentFilename = '';
+        $this->zipClass = null;
+
+        throw new Exception('unserialize not permitted for this class');
+    }
+
     /**
      * Expose zip class.
      *
@@ -221,7 +246,7 @@ class TemplateProcessor
      * @param array $xslOptions
      * @param string $xslOptionsUri
      */
-public function applyXslStyleSheet($xslDomDocument, $xslOptions = [], $xslOptionsUri = ''): void
+    public function applyXslStyleSheet($xslDomDocument, $xslOptions = [], $xslOptionsUri = ''): void
     {
         $xsltProcessor = new XSLTProcessor();
 
@@ -250,22 +275,17 @@ public function applyXslStyleSheet($xslDomDocument, $xslOptions = [], $xslOption
     }
 
     /**
-     * @param string $subject
+     * @param ?string $subject
      *
      * @return string
      */
     protected static function ensureUtf8Encoded($subject)
     {
-        if (!Text::isUTF8($subject) && null !== $subject) {
-            $subject = utf8_encode($subject);
-        }
-
-        return (null !== $subject) ? $subject : '';
+        return $subject ? Text::toUTF8($subject) : '';
     }
 
     /**
      * @param string $search
-     * @param \PhpOffice\PhpWord\Element\AbstractElement $complexType
      */
     public function setComplexValue($search, Element\AbstractElement $complexType): void
     {
@@ -293,7 +313,6 @@ public function applyXslStyleSheet($xslDomDocument, $xslOptions = [], $xslOption
 
     /**
      * @param string $search
-     * @param \PhpOffice\PhpWord\Element\AbstractElement $complexType
      */
     public function setComplexBlock($search, Element\AbstractElement $complexType): void
     {
@@ -351,6 +370,27 @@ public function applyXslStyleSheet($xslDomDocument, $xslOptions = [], $xslOption
         foreach ($values as $macro => $replace) {
             $this->setValue($macro, $replace);
         }
+    }
+
+    public function setCheckbox(string $search, bool $checked): void
+    {
+        $search = static::ensureMacroCompleted($search);
+        $blockType = 'w:sdt';
+
+        $where = $this->findContainingXmlBlockForMacro($search, $blockType);
+        if (!is_array($where)) {
+            return;
+        }
+
+        $block = $this->getSlice($where['start'], $where['end']);
+
+        $val = $checked ? '1' : '0';
+        $block = preg_replace('/(<w14:checked w14:val=)".*?"(\/>)/', '$1"' . $val . '"$2', $block);
+
+        $text = $checked ? '☒' : '☐';
+        $block = preg_replace('/(<w:t>).*?(<\/w:t>)/', '$1' . $text . '$2', $block);
+
+        $this->replaceXmlBlock($search, $block, $blockType);
     }
 
     /**
@@ -437,7 +477,7 @@ public function applyXslStyleSheet($xslDomDocument, $xslOptions = [], $xslOption
         if (null === $value && isset($inlineValue)) {
             $value = $inlineValue;
         }
-        if (!preg_match('/^([0-9]*(cm|mm|in|pt|pc|px|%|em|ex|)|auto)$/i', $value ?? '')) {
+        if (!preg_match('/^([0-9\.]*(cm|mm|in|pt|pc|px|%|em|ex|)|auto)$/i', $value ?? '')) {
             $value = null;
         }
         if (null === $value) {
