@@ -92,11 +92,11 @@ if(isset($_REQUEST['btnsubmit']))
     $completion_date = "";
     $expansion_status = "";
   }
-  
-  // exit();
 
   if($img!=""){
-    unlink("gst_image/".$old_img);  
+    if(file_exists("gst_image/".$old_img)){
+      unlink("gst_image/".$old_img);  
+    }
     //rename file for gst image
     if ($_FILES["img"]["name"] != "")
     {
@@ -2017,8 +2017,8 @@ if(isset($_COOKIE["msg"]) )
         }
 
         // if all values filled then don't show all details
-        //if(res['Id']!="" && res['Plot_Id']!="" && res['IndustrialEstate']!="" && res['Area']!="" && res['Plot_Status']!="" && res['Premise']!="" && res['GST_No']!="" && res['Firm_Name']!="" && res['Contact_Name']!="" && res['Mobile_No']!="" && res['Constitution']!="" && res['Category']!="" && res['Segment']!="" && res['Status']!="" && res['source']!="" && res['Source_Name']!="" && res['Remarks']!="" && res['Image']!=""){
-        if(res['Company_plot_id']==null && res['Id']!=""){
+        // if((res['Company_plot_id']!=null || res['Company_plot_id']!="") && res['Id']!=""){
+        if(res['Id']!="" && res['Plot_Id']!="" && res['IndustrialEstate']!="" && res['Area']!="" && res['Plot_Status']!="" && res['Premise']!="" && res['GST_No']!="" && res['Firm_Name']!="" && res['Contact_Name']!="" && res['Mobile_No']!="" && res['Constitution']!="" && res['Category']!="" && res['Segment']!="" && res['Status']!="" && res['source']!="" && res['Source_Name']!="" && res['Remarks']!="" && res['Image']!=""){
             $('#company_details_div').attr("hidden",true);
             $('#btnsubmit').attr("hidden",true);
             $('#btnsubmit').attr("disabled",true);

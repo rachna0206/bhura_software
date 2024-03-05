@@ -2369,11 +2369,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
         $constitution = "";
         $image = "";
         $pr_comp_status = "";
-/*
-        print_r($res_pattern);
 
-        echo "plotting pattern = ".$res_pattern['plotting_pattern'];
-*/
         $res_company_plot=$db->get_pr_company_details($res_pattern['plotting_pattern'],$estate_id,$plot_no,$floor_no,$road_no);
         
         if($res_company_plot){
@@ -2433,11 +2429,12 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                     "Company_detail_id" => $res_company_plot["company_id"],
                     "Company_plot_id" => $res_company_plot["pid"],
                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
-                    "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
+                    "Completion_Date" => isset($post_fields->Completion_Date)?date('d-m-Y',strtotime($post_fields->Completion_Date)):"",
                     "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
                 );
 
-                if($res_company_plot["pid"]==null && $plot["id"]!=""){
+                //if(($res_company_plot["pid"]!=null || $res_company_plot["pid"]!="") && $plot["id"]!=""){
+                if($plot['id']!="" && $res_company_plot['plot_id']!="" && $post_fields->IndustrialEstate!="" && $post_fields->Area!="" && $res_company_plot['plot_status']!="" && $post_fields->Premise!="" && $post_fields->GST_No!="" && $post_fields->Firm_Name!="" && $post_fields->Contact_Name!="" && $post_fields->Mobile_No!="" && $res_company_plot['constitution']!="" && $post_fields->Category!="" && $post_fields->Segment!="" && $res_company_plot['status']!="" && $post_fields->source!="" && $post_fields->Source_Name!="" && $post_fields->Remarks!="" && $res_company_plot['image']!=""){
                     $data['message'] = "hide data";
                 }
                 else{
@@ -2519,11 +2516,12 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                                     "Company_detail_id" => $res_company_plot["company_id"],
                                     "Company_plot_id" => $res_company_plot["pid"],
                                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
-                                    "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
+                                    "Completion_Date" => isset($post_fields->Completion_Date)?date('d-m-Y',strtotime($post_fields->Completion_Date)):"",
                                     "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
                                 );
                                 
-                                if($res_company_plot["pid"]==null && $plot["id"]!=""){
+                                //if(($res_company_plot["pid"]!=null || $res_company_plot["pid"]!="") && $plot["id"]!=""){
+                                if($plot['id']!="" && $res_company_plot['plot_id']!="" && $post_fields->IndustrialEstate!="" && $post_fields->Area!="" && $res_company_plot['plot_status']!="" && $post_fields->Premise!="" && $post_fields->GST_No!="" && $post_fields->Firm_Name!="" && $post_fields->Contact_Name!="" && $post_fields->Mobile_No!="" && $res_company_plot['constitution']!="" && $post_fields->Category!="" && $post_fields->Segment!="" && $res_company_plot['status']!="" && $post_fields->source!="" && $post_fields->Source_Name!="" && $post_fields->Remarks!="" && $res_company_plot['image']!=""){
                                     $data['message'] = "hide data";
                                 }
                                 else{
@@ -3337,8 +3335,6 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
                 $result_visit_count=$db->pr_visit_count($result_estate['industrial_estate'],$result_estate['area_id'],$result_estate['taluka'],$id,$user_id,$result);
             }
         }
-
-      $plot_id = $last_plot_id+1;
 
       $resp_company_plot = $db->company_plot_insert($plot_no,$floor,$road_number,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id);
     }
@@ -4157,6 +4153,356 @@ $app->post('/add_followup','authenticateUser', function () use ($app) {
     echoResponse(200, $data);
 });
 
+// mark follow up as done
+$app->post('/mark_as_done','authenticateUser', function () use ($app) {
+    
+    //{"followup_text" : "", "inqid" : "", "mark_id" : "", "source" : "", "next_action" : "", "userid" : "", "next_datetime" : "", "summary" : "", "reason" : "", "remark" : ""}
+
+
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $followup_text=$data_request->followup_text;
+    $inq_id=$data_request->inqid;
+    $mark_id=$data_request->mark_id;
+    $source=$data_request->source;
+    $next_action=$data_request->next_action;
+    $user_id=$data_request->userid;
+
+    $next_datetime=isset($data_request->next_datetime)?$data_request->next_datetime:"";
+    $summary=isset($data_request->summary)?$data_request->summary:"";
+    $reason=isset($data_request->reason)?$data_request->reason:"";
+    $remark=isset($data_request->remark)?$data_request->remark:"";
+    
+    $followup_date = date("Y-m-d");
+    $admin_userid = "1";
+    $done_status = "done";
+    $followup_done_date = date("Y-m-d H:i:s");
+    
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+
+    $res_username=$db->get_username($user_id);
+
+    $res_reminder=$db->update_reminder($done_status,$followup_done_date,$mark_id);
+
+    if($res_reminder>0){
+        if(strtolower($next_action)=="next follow up on phone" || strtolower($next_action)=="next follow up by meeting"){
+            $resp = $db->insert_followup($user_id,$inq_id,$followup_text,$source,$followup_date);
+            $db->insert_reminder($inq_id,$user_id,$next_datetime,$source,$summary,$next_action);
+        }
+        else if(strtolower($next_action)=="just an update"){
+            $resp = $db->insert_followup($user_id,$inq_id,$followup_text,$source,$followup_date);
+        }
+        else if(strtolower($next_action)=="process application"){
+            $followup_text_application = $res_username['name']." has started Application.";
+            $source_application = "Auto";
+            $stage_application = "applicationstart";
+
+            $resp = $db->insert_followup($user_id,$inq_id,$followup_text,$source,$followup_date);
+            $db->insert_followup($user_id,$inq_id,$followup_text_application,$source_application,$followup_date);
+            $db->insert_rawassign($inq_id,$user_id,$stage_application);
+        }
+        else if(strtolower($next_action)=="bad lead (discard)"){
+            $followup_text_badlead = $res_username['name']." has marked lead as BAD LEAD. <br />Reason: ".$reason." <br />Remark: ".$remark;
+            $source_badlead = "Auto";
+            $stage_badlead = "badlead";
+            $badlead_type = "lead";
+
+            $resp = $db->insert_followup($user_id,$inq_id,$followup_text,$source,$followup_date);
+            $db->insert_followup($user_id,$inq_id,$followup_text_badlead,$source_badlead,$followup_date);
+            $db->insert_rawassign($inq_id,$admin_userid,$stage_badlead);
+            $db->insert_badleads($reason,$remark,$inq_id,$user_id,$badlead_type);
+        }
+        
+        if($resp>0)
+        {
+            $data['message'] = "Data added successfully";
+            $data['success'] = true;
+        }
+        else
+        {
+            $data['data'] = "";
+            $data['message'] = "An error occurred";
+            $data['success'] = false;
+        }
+    }
+    else{
+        $data['data'] = "";
+        $data['message'] = "An error occurred";
+        $data['success'] = false;
+    }
+    
+
+    echoResponse(200, $data);
+});
+
+
+// get department list 
+$app->post('/get_department_list','authenticateUser', function () use ($app) {
+    
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_department_list();
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// get department designation list
+$app->post('/get_department_designation','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $department = $data_request->department;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_department_designation($department);
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// get department user list
+$app->post('/get_department_user','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $department = $data_request->department;
+    $designation = $data_request->designation;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_department_user($department,$designation);
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// assign lead
+$app->post('/get_assign_history','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $inq_id = $data_request->inq_id;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_assign_history($inq_id);
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+
+        $data['message'] = "";
+        $data['success'] = true;
+    }
+    else{
+        $data['message'] = "No Data Found";
+        $data['success'] = false;
+    }
+ 
+    echoResponse(200, $data);
+});
+
+// assign lead to user (check user ids and data)
+$app->post('/assign_lead','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $loggedin_user_id=$data_request->loggedin_user;
+    $selected_user_id=$data_request->selected_user;
+    $inq_id=$data_request->inq_id;
+    
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+
+    $res_logged_username=$db->get_username($loggedin_user_id);
+    $res_selected_username=$db->get_username($selected_user_id);
+
+    $raw_assign_status = "lead";
+    $followup_text = "<p>".$res_logged_username['name']." has forwarded to ".$res_selected_username['name'].".</p>";
+    $followup_source = "Auto";
+
+    $followup_date = date("Y-m-d");
+    
+    $result_rawassign = $db->insert_rawassign($inq_id,$selected_user_id,$raw_assign_status);
+
+    $result_followup = $db->insert_followup($loggedin_user_id,$inq_id,$followup_text,$followup_source,$followup_date);
+
+    if($result_followup>0)
+    {
+        $data['message'] = "Data added successfully";
+        $data['success'] = true;
+    }
+    else
+    {
+        $data['data'] = "";
+        $data['message'] = "An error occurred";
+        $data['success'] = false;
+    }
+
+    echoResponse(200, $data);
+});
+
+// lead company list
+$app->post('/lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["new"] = array();
+    $data["data"]["lead"] = array();
+    $data["data"]["today"] = array();
+    $data["data"]["tomorrow"] = array();
+
+    $res_username=$db->get_username($userid);
+
+    $result_new=$db->new_section_company_list($userid);
+    $result_remaining=$db->remaining_lead_company_list($userid);
+    $result_today=$db->today_section_company_list($userid);
+    $result_tomorrow=$db->tomorrow_section_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    if(mysqli_num_rows($result_new)>0){
+        while ($row = $result_new->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['new'], $temp);
+        }
+    }
+    if(mysqli_num_rows($result_remaining)>0){
+        while ($row = $result_remaining->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['lead'], $temp);
+        }
+    }
+    if(mysqli_num_rows($result_today)>0){
+        while ($row = $result_today->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['today'], $temp);
+        }
+    }
+    if(mysqli_num_rows($result_tomorrow)>0){
+        while ($row = $result_tomorrow->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['tomorrow'], $temp);
+        }
+    }
+
+    $data['assign'] = ($res_username["role"]=="assignor/verifier")?true:false;
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// assign lead
+$app->post('/get_lead_count','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    
+    $result=$db->get_lead_count($userid);
+
+    $data['count'] = $result;
+    $data['success'] = true;
+ 
+    echoResponse(200, $data);
+});
+
+/*
 // get state list 
 $app->post('/get_state_list','authenticateUser', function () use ($app) {
     
@@ -4281,7 +4627,7 @@ $app->post('/get_vertical_list','authenticateUser', function () use ($app) {
     echoResponse(200, $data);
 });
 
-// get city list 
+// get service name list 
 $app->post('/get_service_name_list','authenticateUser', function () use ($app) {
     
     verifyRequiredParams(array('data'));
@@ -4314,8 +4660,7 @@ $app->post('/get_service_name_list','authenticateUser', function () use ($app) {
  
     echoResponse(200, $data);
 });
-
-
+*/
 
 function echoResponse($status_code, $response)
 {

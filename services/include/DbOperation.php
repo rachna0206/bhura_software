@@ -53,7 +53,7 @@ public function assignorLogin($userid, $password)
 
 public function assignor_data($userid)
 {        
-    $qr = $this->con->prepare("select id,name from tbl_users where email=?");
+    $qr = $this->con->prepare("select id,name,role from tbl_users where email=?");
     $qr->bind_param("s",$userid);
     $qr->execute();
     $result = $qr->get_result()->fetch_assoc();
@@ -63,7 +63,7 @@ public function assignor_data($userid)
 
 public function get_username($userid)
 {
-    $qr = $this->con->prepare("select name from tbl_users where id=?");
+    $qr = $this->con->prepare("select name, role from tbl_users where id=?");
     $qr->bind_param("i",$userid);
     $qr->execute();
     $result = $qr->get_result()->fetch_assoc();
@@ -790,6 +790,7 @@ public function insert_followup($user_id,$id,$followup_text,$followup_source,$fo
 // insert into tbl_tdrawassign
 public function insert_rawassign($id,$admin_userid,$raw_assign_status)
 {
+    // echo "INSERT INTO `tbl_tdrawassign`(`inq_id`, `user_id`, `stage`) VALUES ('".$id."','".$admin_userid."','".$raw_assign_status."')";
     $stmt_status = $this->con->prepare("INSERT INTO `tbl_tdrawassign`(`inq_id`, `user_id`, `stage`) VALUES (?,?,?)");
     $stmt_status->bind_param("iis",$id,$admin_userid,$raw_assign_status);
     $Resp=$stmt_status->execute();
@@ -1068,15 +1069,24 @@ public function followups_list($inq_id)
     return $followup_result;
 }
 
-// insert into tbl_tdrawassign
+// insert into tbl_tdreminder
 public function insert_reminder($inq_id,$user_id,$reminder_dt,$reminder_text,$reminder_summary,$reminder_source)
-{
-    
-    
+{   
     $stmt_status = $this->con->prepare("INSERT INTO `tbl_tdreminder`(`inq_id`, `user_id`, `reminder_dt`, `reminder_text`, `reminder_summary`, `reminder_source`) VALUES (?,?,?,?,?,?)");
     $stmt_status->bind_param("iissss",$inq_id,$user_id,$reminder_dt,$reminder_text,$reminder_summary,$reminder_source);
     $Resp=$stmt_status->execute();
     $stmt_status->close();
+}
+
+// update tbl_tdreminder
+public function update_reminder($reminder_status,$done_date,$id)
+{   
+    $stmt_status = $this->con->prepare("UPDATE `tbl_tdreminder` set `reminder_status`=?, `followup_done_date`=? WHERE id=?");
+    $stmt_status->bind_param("ssi",$reminder_status,$done_date,$id);
+    $Resp=$stmt_status->execute();
+    $stmt_status->close();
+
+    return $Resp;
 }
 
 // insert into tbl_tdrawdata_cdates
@@ -1108,6 +1118,103 @@ public function insert_tdrawdata_cdates($inq_id,$user_id,$completion_date)
     }
 }
 
+// get department list
+public function get_department_list()
+{
+    $stmt_department = $this->con->prepare("SELECT * FROM `tbl_department_master`");
+    $stmt_department->execute();
+    $department_result = $stmt_department->get_result();
+    $stmt_department->close();
+    return $department_result;
+}
+
+// get department designation list
+public function get_department_designation($designation_id)
+{
+    $stmt_designation = $this->con->prepare("SELECT id, designation FROM `tbl_department_designation` WHERE dept_id=?");
+    $stmt_designation->bind_param("i",$designation_id);
+    $stmt_designation->execute();
+    $designation_result = $stmt_designation->get_result();
+    $stmt_designation->close();
+    return $designation_result;
+}
+
+// get department designation list
+public function get_department_user($department_id,$designation_id)
+{
+    $stmt_user = $this->con->prepare("SELECT id, name FROM `tbl_users` WHERE department=? and designation=?");
+    $stmt_user->bind_param("ii",$department_id,$designation_id);
+    $stmt_user->execute();
+    $user_result = $stmt_user->get_result();
+    $stmt_user->close();
+    return $user_result;
+}
+
+// get assign history of lead
+public function get_assign_history($inq_id)
+{
+    $stmt_history = $this->con->prepare("SELECT r1.inq_id, CONCAT(u1.name,'(',r1.stage,') ', r1.ts) as assign_data FROM `tbl_tdrawassign` r1, `tbl_users` u1 WHERE r1.user_id = u1.id AND r1.inq_id=?");
+    $stmt_history->bind_param("i",$inq_id);
+    $stmt_history->execute();
+    $history_result = $stmt_history->get_result();
+    $stmt_history->close();
+    return $history_result;
+}
+
+// get remaining lead company list
+public function remaining_lead_company_list($userid)
+{
+    $stmt_company_list = $this->con->prepare("SELECT r1.inq_id, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN 'Subsidy (Loan - Sactioned)' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN 'Loan - Want to Apply' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN 'Subsidy (Loan - Under Process)' ELSE 'Yet to decide' END AS vertical, us1.name AS current_user_name, (SELECT u1.name from tbl_tdrawassign r1, tbl_users u1 WHERE r1.user_id=u1.id and user_id!='".$userid."' and inq_id=r1.inq_id order by r1.id desc LIMIT 1) as forwarded_by, date_format(c1.raw_data_ts,'%d-%m-%Y') as received_on, COALESCE((SELECT date_format(cdate,'%d-%m-%Y') FROM tbl_tdrawdata_cdates WHERE inq_id = r1.inq_id ORDER BY id DESC LIMIT 1), '01-01-1970') as completion_date, json_unquote(c1.raw_data->'$.post_fields.Area') as area, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.TL_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount') + json_unquote(c1.raw_data->'$.post_fields.CC_Loan_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount_In_Process'), ''), 0) ELSE 0 END AS loan_amount FROM (SELECT MAX(t2.id) as r_id FROM tbl_tdrawassign t1, tbl_tdrawassign t2 WHERE t1.id = t2.id GROUP BY t2.inq_id) as tbl1, tbl_tdrawassign r1, tbl_tdrawdata c1, tbl_users us1 WHERE tbl1.r_id = r1.id AND r1.inq_id = c1.id AND r1.user_id=us1.id AND r1.stage = 'lead' AND r1.user_id = '".$userid."' AND r1.inq_id IN (SELECT r1.inq_id FROM (SELECT MAX(t2.id) as r_id FROM tbl_tdfollowup t1, tbl_tdfollowup t2 WHERE t1.id = t2.id GROUP BY t2.inq_id) as tbl1, tbl_tdfollowup r1 WHERE tbl1.r_id = r1.id AND r1.user_id='".$userid."') AND r1.inq_id NOT IN (SELECT re1.inq_id FROM tbl_tdreminder re1 WHERE re1.user_id='".$userid."' and re1.reminder_status='pending' and followup_type='application-followup' order by re1.reminder_dt)");
+    $stmt_company_list->execute();
+    $company_result = $stmt_company_list->get_result();
+    $stmt_company_list->close();
+    return $company_result;
+}
+
+// get new section company list
+public function new_section_company_list($userid)
+{
+    $stmt_company_list = $this->con->prepare("SELECT r1.inq_id, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN 'Subsidy (Loan - Sactioned)' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN 'Loan - Want to Apply' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN 'Subsidy (Loan - Under Process)' ELSE 'Yet to decide' END AS vertical, us1.name AS current_user_name, (SELECT u1.name from tbl_tdrawassign r1, tbl_users u1 WHERE r1.user_id=u1.id and user_id!='".$userid."' and inq_id=r1.inq_id order by r1.id desc LIMIT 1) as forwarded_by, date_format(c1.raw_data_ts,'%d-%m-%Y') as received_on, COALESCE((SELECT date_format(cdate,'%d-%m-%Y') FROM tbl_tdrawdata_cdates WHERE inq_id = r1.inq_id ORDER BY id DESC LIMIT 1), '01-01-1970') as completion_date, json_unquote(c1.raw_data->'$.post_fields.Area') as area, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.TL_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount') + json_unquote(c1.raw_data->'$.post_fields.CC_Loan_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount_In_Process'), ''), 0) ELSE 0 END AS loan_amount FROM (SELECT MAX(t2.id) as r_id FROM tbl_tdrawassign t1, tbl_tdrawassign t2 WHERE t1.id = t2.id GROUP BY t2.inq_id) as tbl1, tbl_tdrawassign r1, tbl_tdrawdata c1, tbl_users us1 WHERE tbl1.r_id = r1.id AND r1.inq_id = c1.id AND r1.user_id=us1.id AND r1.stage = 'lead' AND r1.user_id = '".$userid."' AND r1.inq_id NOT IN (SELECT r1.inq_id FROM (SELECT MAX(t2.id) as r_id FROM tbl_tdfollowup t1, tbl_tdfollowup t2 WHERE t1.id = t2.id GROUP BY t2.inq_id) as tbl1, tbl_tdfollowup r1 WHERE tbl1.r_id = r1.id AND r1.user_id='".$userid."')");
+    $stmt_company_list->execute();
+    $company_result = $stmt_company_list->get_result();
+    $stmt_company_list->close();
+    return $company_result;
+}
+
+// get today's section company list
+public function today_section_company_list($userid)
+{
+    $stmt_company_list = $this->con->prepare("SELECT c1.id as inq_id, re1.reminder_summary as follow_up, re1.reminder_source, date_format(re1.reminder_dt, '%d-%m-%Y %h:%i %p') as reminder_dt, CASE WHEN DATEDIFF(re1.reminder_dt, CURDATE()) < 0 THEN CONCAT('You are ', DATEDIFF(CURDATE(), re1.reminder_dt), ' days(s) late.') ELSE NULL END AS date_difference, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, json_unquote(c1.raw_data->'$.post_fields.Area') as area, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN 'Subsidy (Loan - Sactioned)' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN 'Loan - Want to Apply' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN 'Subsidy (Loan - Under Process)' ELSE 'Yet to decide' END AS vertical, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.TL_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount') + json_unquote(c1.raw_data->'$.post_fields.CC_Loan_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount_In_Process'), ''), 0) ELSE 0 END AS loan_amount, COALESCE((SELECT date_format(cdate, '%d-%m-%Y') FROM tbl_tdrawdata_cdates WHERE inq_id = c1.id ORDER BY id DESC LIMIT 1), '01-01-1970') as completion_date, CASE WHEN r1.inq_id IS NOT NULL THEN 'true' ELSE 'false' END AS radiobutton_display FROM tbl_tdreminder re1 JOIN tbl_tdrawdata c1 ON re1.inq_id = c1.id LEFT JOIN (SELECT r1.inq_id FROM (SELECT MAX(t2.id) as r_id FROM tbl_tdrawassign t1, tbl_tdrawassign t2 WHERE t1.id = t2.id GROUP BY t2.inq_id) as tbl1 JOIN tbl_tdrawassign r1 ON tbl1.r_id = r1.id AND r1.stage = 'lead' AND r1.user_id = '".$userid."') r1 ON re1.inq_id = r1.inq_id WHERE re1.user_id = '".$userid."' AND re1.reminder_status = 'pending' AND date_format(re1.reminder_dt, '%Y-%m-%d') <= CURDATE() AND re1.followup_type = 'application-followup' ORDER BY re1.reminder_dt");
+    $stmt_company_list->execute();
+    $company_result = $stmt_company_list->get_result();
+    $stmt_company_list->close();
+    return $company_result;
+}
+
+// get tomorrow's section company list
+public function tomorrow_section_company_list($userid)
+{
+    $stmt_company_list = $this->con->prepare("SELECT c1.id as inq_id, re1.reminder_summary as follow_up, re1.reminder_source, date_format(re1.reminder_dt,'%d-%m-%Y %h:%i %p') as reminder_dt, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, json_unquote(c1.raw_data->'$.post_fields.Area') as area, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN 'Subsidy (Loan - Sactioned)' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN 'Loan - Want to Apply' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN 'Subsidy (Loan - Under Process)' ELSE 'Yet to decide' END AS vertical, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.TL_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount') + json_unquote(c1.raw_data->'$.post_fields.CC_Loan_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount_In_Process'), ''), 0) ELSE 0 END AS loan_amount, COALESCE((SELECT date_format(cdate,'%d-%m-%Y') FROM tbl_tdrawdata_cdates WHERE inq_id = c1.id ORDER BY id DESC LIMIT 1), '01-01-1970') as completion_date, CASE WHEN r1.inq_id IS NOT NULL THEN 'true' ELSE 'false' END AS radiobutton_display FROM tbl_tdreminder re1 JOIN tbl_tdrawdata c1 ON re1.inq_id = c1.id LEFT JOIN (SELECT r1.inq_id FROM (SELECT MAX(t2.id) as r_id FROM tbl_tdrawassign t1, tbl_tdrawassign t2 WHERE t1.id = t2.id GROUP BY t2.inq_id) as tbl1 JOIN tbl_tdrawassign r1 ON tbl1.r_id = r1.id AND r1.stage = 'lead' AND r1.user_id = '".$userid."') r1 ON re1.inq_id = r1.inq_id WHERE re1.user_id='".$userid."' and re1.reminder_status='pending' and date_format(re1.reminder_dt,'%Y-%m-%d')>CURDATE() and re1.inq_id=c1.id and followup_type='application-followup' order by re1.reminder_dt");
+    $stmt_company_list->execute();
+    $company_result = $stmt_company_list->get_result();
+    $stmt_company_list->close();
+    return $company_result;
+}
+
+// get today's lead count
+public function get_lead_count($userid)
+{
+    $stmt_count = $this->con->prepare("SELECT count(*) as today_count FROM tbl_tdreminder re1, tbl_tdrawdata c1 WHERE re1.user_id=? and re1.reminder_status='pending' and date_format(re1.reminder_dt,'%Y-%m-%d')<=CURDATE() and re1.inq_id=c1.id and followup_type='application-followup' order by re1.reminder_dt");
+    $stmt_count->bind_param("i",$userid);
+    $stmt_count->execute();
+    $count_result = $stmt_count->get_result()->fetch_assoc();
+    $stmt_count->close();
+    $todays_count = $count_result["today_count"];
+    return $todays_count;
+}
+
+
+/*
 // get state list
 public function get_state_list()
 {
@@ -1159,6 +1266,8 @@ public function get_service_name_list($vertical)
     $stmt_service->close();
     return $service_result;
 }
+
+*/
 //7239
 // supplier details (machinery) => SELECT json_unquote(raw_data->'$.post_fields.Firm_Name') as supplier_details FROM `tbl_tdassodata` where lower(raw_data->'$.post_fields.Segment_Name') like '%machine supplier%' order by id desc;
 
