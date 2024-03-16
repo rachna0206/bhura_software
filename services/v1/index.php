@@ -4424,6 +4424,7 @@ $app->post('/lead_list','authenticateUser', function () use ($app) {
     $data["data"] = array();
     $data["data"]["new"] = array();
     $data["data"]["lead"] = array();
+    $data["data"]["overdue"] = array();
     $data["data"]["today"] = array();
     $data["data"]["tomorrow"] = array();
 
@@ -4431,32 +4432,54 @@ $app->post('/lead_list','authenticateUser', function () use ($app) {
 
     $result_new=$db->new_section_company_list($userid);
     $result_remaining=$db->remaining_lead_company_list($userid);
+    $result_overdue=$db->overdue_section_company_list($userid);
     $result_today=$db->today_section_company_list($userid);
     $result_tomorrow=$db->tomorrow_section_company_list($userid);
 
     // if display=true -> show all radio buttons
     // if display=false -> show only 'Just An Update' radio button
 
+    // new section
     if(mysqli_num_rows($result_new)>0){
         while ($row = $result_new->fetch_assoc()) {
             $temp = array();
             foreach ($row as $key => $value) {
                 $temp[$key] = $value;
             }
+            $temp['assign'] = ($res_username["role"]=="assignor/verifier")?"true":"false";
+            $temp['radiobutton_display'] = "true";
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data']['new'], $temp);
         }
     }
+
+    // remaining lead section
     if(mysqli_num_rows($result_remaining)>0){
         while ($row = $result_remaining->fetch_assoc()) {
             $temp = array();
             foreach ($row as $key => $value) {
                 $temp[$key] = $value;
             }
+            $temp['assign'] = ($res_username["role"]=="assignor/verifier")?"true":"false";
+            $temp['radiobutton_display'] = "true";
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data']['lead'], $temp);
         }
     }
+
+    // overdue section
+    if(mysqli_num_rows($result_overdue)>0){
+        while ($row = $result_overdue->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['overdue'], $temp);
+        }
+    }
+
+    // today section
     if(mysqli_num_rows($result_today)>0){
         while ($row = $result_today->fetch_assoc()) {
             $temp = array();
@@ -4467,6 +4490,8 @@ $app->post('/lead_list','authenticateUser', function () use ($app) {
             array_push($data['data']['today'], $temp);
         }
     }
+
+    // tomorrow section
     if(mysqli_num_rows($result_tomorrow)>0){
         while ($row = $result_tomorrow->fetch_assoc()) {
             $temp = array();
@@ -4478,13 +4503,235 @@ $app->post('/lead_list','authenticateUser', function () use ($app) {
         }
     }
 
-    $data['assign'] = ($res_username["role"]=="assignor/verifier")?true:false;
+    // $data['assign'] = ($res_username["role"]=="assignor/verifier")?true:false;
     $data['success'] = true;
 
     echoResponse(200, $data);
 });
 
-// assign lead
+// new section lead company list
+$app->post('/new_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["new"] = array();
+    
+    $res_username=$db->get_username($userid);
+
+    $result_new=$db->new_section_company_list($userid);
+    
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // new section
+    if(mysqli_num_rows($result_new)>0){
+        while ($row = $result_new->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp['assign'] = ($res_username["role"]=="assignor/verifier")?"true":"false";
+            $temp['radiobutton_display'] = "true";
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['new'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// remaining section lead company list
+$app->post('/remaining_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["lead"] = array();
+
+    $res_username=$db->get_username($userid);
+
+    $result_remaining=$db->remaining_lead_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // remaining lead section
+    if(mysqli_num_rows($result_remaining)>0){
+        while ($row = $result_remaining->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp['assign'] = ($res_username["role"]=="assignor/verifier")?"true":"false";
+            $temp['radiobutton_display'] = "true";
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['lead'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// overdue section lead company list
+$app->post('/overdue_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["overdue"] = array();
+
+    $res_username=$db->get_username($userid);
+
+    $result_overdue=$db->overdue_section_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // overdue section
+    if(mysqli_num_rows($result_overdue)>0){
+        while ($row = $result_overdue->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp['assign'] = "false";
+            $temp['radiobutton_display'] = "false";
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['overdue'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// today section lead company list
+$app->post('/today_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["today"] = array();
+
+    $res_username=$db->get_username($userid);
+
+    $result_today=$db->today_section_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // today section
+    if(mysqli_num_rows($result_today)>0){
+        while ($row = $result_today->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['today'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// tomorrow section lead company list
+$app->post('/tomorrow_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["tomorrow"] = array();
+
+    $res_username=$db->get_username($userid);
+
+    $result_tomorrow=$db->tomorrow_section_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // tomorrow section
+    if(mysqli_num_rows($result_tomorrow)>0){
+        while ($row = $result_tomorrow->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['tomorrow'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// involved section lead company list
+$app->post('/involved_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["involved"] = array();
+
+    $res_username=$db->get_username($userid);
+
+    $result_involved=$db->involved_section_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // involved section
+    if(mysqli_num_rows($result_involved)>0){
+        while ($row = $result_involved->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['involved'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// get today's lead count
 $app->post('/get_lead_count','authenticateUser', function () use ($app) {
     
     verifyRequiredParams(array('data'));
@@ -4497,6 +4744,35 @@ $app->post('/get_lead_count','authenticateUser', function () use ($app) {
     $result=$db->get_lead_count($userid);
 
     $data['count'] = $result;
+    $data['success'] = true;
+ 
+    echoResponse(200, $data);
+});
+
+// get all counts of lead section
+$app->post('/get_all_section_count','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    
+    $result=$db->get_all_section_count($userid);
+
+    if(mysqli_num_rows($result)>0){
+        while ($row = $result->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+    }
+
     $data['success'] = true;
  
     echoResponse(200, $data);
