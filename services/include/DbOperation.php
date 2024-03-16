@@ -620,11 +620,11 @@ public function get_pr_company_plot($plotting_pattern,$estate_id,$plot_no,$floor
 public function get_pr_company_details($plotting_pattern,$estate_id,$plot_no,$floor_no,$road_no){
 
     if($plotting_pattern=="Series"){
-        $stmt_company_plot = $this->con->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=?");
+        $stmt_company_plot = $this->con->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id, c1.existing_client_status FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=?");
         $stmt_company_plot->bind_param("sii",$plot_no,$floor_no,$estate_id);
     }
     else if($plotting_pattern=="Road"){
-        $stmt_company_plot = $this->con->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=? and p1.road_no=?");
+        $stmt_company_plot = $this->con->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id, c1.existing_client_status FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=? and p1.road_no=?");
         $stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$estate_id,$road_no);
     }
     $stmt_company_plot->execute();
@@ -820,30 +820,30 @@ public function get_badlead_reason($inq_id)
 }
 
 // insert into pr_company_details and pr_company_plots
-public function insert_pr_company_detail($source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$state,$city,$taluka,$area,$industrial_estate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$plot_status,$pr_company_plot_id,$pr_company_detail_id)
+public function insert_pr_company_detail($source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$state,$city,$taluka,$area,$industrial_estate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$plot_status,$pr_company_plot_id,$pr_company_detail_id,$location,$existing_expansion_status)
 {
     if($pr_company_detail_id=="" || $pr_company_detail_id==null || $pr_company_detail_id=="null"){
           
-      $stmt_pr_company_detail = $this->con->prepare("INSERT INTO `pr_company_details`(`source`, `source_name`, `contact_name`, `mobile_no`, `firm_name`, `gst_no`, `category`, `segment`, `premise`, `state`, `city`, `taluka`, `area`, `industrial_estate`, `remarks`, `inq_submit`, `image`, `constitution`, `status`, `industrial_estate_id`, `user_id`, `rawdata_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-      $stmt_pr_company_detail->bind_param("sssssssssssssssssssiii",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$state,$city,$taluka,$area,$industrial_estate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id);
+      $stmt_pr_company_detail = $this->con->prepare("INSERT INTO `pr_company_details`(`source`, `source_name`, `contact_name`, `mobile_no`, `firm_name`, `gst_no`, `category`, `segment`, `premise`, `state`, `city`, `taluka`, `area`, `industrial_estate`, `remarks`, `inq_submit`, `image`, `constitution`, `status`, `industrial_estate_id`, `user_id`, `rawdata_id`,`existing_client_status`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+      $stmt_pr_company_detail->bind_param("sssssssssssssssssssiiis",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$state,$city,$taluka,$area,$industrial_estate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$existing_expansion_status);
       $Resp=$stmt_pr_company_detail->execute();
       $last_insert_company_id = mysqli_insert_id($this->con);
       $stmt_pr_company_detail->close();
       
-      $stmt_pr_company_plot = $this->con->prepare("UPDATE `pr_company_plots` SET `plot_status`=?, `company_id`=?, `user_id`=? WHERE `pid`=?");
-      $stmt_pr_company_plot->bind_param("siii",$plot_status,$last_insert_company_id,$user_id,$pr_company_plot_id);
+      $stmt_pr_company_plot = $this->con->prepare("UPDATE `pr_company_plots` SET `plot_status`=?, `company_id`=?, `user_id`=?, `location`=? WHERE `pid`=?");
+      $stmt_pr_company_plot->bind_param("siisi",$plot_status,$last_insert_company_id,$user_id,$location,$pr_company_plot_id);
       $Resp=$stmt_pr_company_plot->execute();
       $stmt_pr_company_plot->close();
     }
     else{
 
-      $stmt_pr_company_detail = $this->con->prepare("UPDATE `pr_company_details` SET `source`=?, `source_name`=?, `contact_name`=?, `mobile_no`=?, `firm_name`=?, `gst_no`=?, `category`=?, `segment`=?, `premise`=?, `remarks`=?, `inq_submit`=?, `image`=?, `constitution`=?, `status`=?, `user_id`=?, `rawdata_id`=? WHERE `cid`=?");
-      $stmt_pr_company_detail->bind_param("ssssssssssssssiii",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$remark,$inq_submit,$PicFileName,$constitution,$status,$user_id,$id,$pr_company_detail_id);
+      $stmt_pr_company_detail = $this->con->prepare("UPDATE `pr_company_details` SET `source`=?, `source_name`=?, `contact_name`=?, `mobile_no`=?, `firm_name`=?, `gst_no`=?, `category`=?, `segment`=?, `premise`=?, `remarks`=?, `inq_submit`=?, `image`=?, `constitution`=?, `status`=?, `user_id`=?, `rawdata_id`=?, `existing_client_status`=? WHERE `cid`=?");
+      $stmt_pr_company_detail->bind_param("ssssssssssssssiisi",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$remark,$inq_submit,$PicFileName,$constitution,$status,$user_id,$id,$existing_expansion_status,$pr_company_detail_id);
       $Resp=$stmt_pr_company_detail->execute();
       $stmt_pr_company_detail->close();
 
-      $stmt_pr_company_plot = $this->con->prepare("UPDATE `pr_company_plots` SET `plot_status`=?, `company_id`=?, `user_id`=? WHERE `pid`=?");
-      $stmt_pr_company_plot->bind_param("siii",$plot_status,$pr_company_detail_id,$user_id,$pr_company_plot_id);
+      $stmt_pr_company_plot = $this->con->prepare("UPDATE `pr_company_plots` SET `plot_status`=?, `company_id`=?, `user_id`=?, `location`=? WHERE `pid`=?");
+      $stmt_pr_company_plot->bind_param("siisi",$plot_status,$pr_company_detail_id,$user_id,$location,$pr_company_plot_id);
       $Resp=$stmt_pr_company_plot->execute();
       $stmt_pr_company_plot->close();
     }
@@ -1205,7 +1205,7 @@ public function tomorrow_section_company_list($userid)
 // get overdue's section company list
 public function overdue_section_company_list($userid)
 {
-    $stmt_company_list = $this->con->prepare("SELECT r1.inq_id, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN 'Subsidy (Loan - Sactioned)' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN 'Loan - Want to Apply' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN 'Subsidy (Loan - Under Process)' ELSE 'Yet to decide' END AS vertical, us1.name AS current_user_name, (SELECT u1.name from tbl_tdrawassign ra1, tbl_users u1 WHERE ra1.user_id=u1.id and user_id!=us1.id and ra1.inq_id=r1.inq_id order by ra1.id desc LIMIT 1) as forwarded_by, date_format(c1.raw_data_ts,'%d-%m-%Y') as received_on, COALESCE((SELECT date_format(cdate,'%d-%m-%Y') FROM tbl_tdrawdata_cdates WHERE inq_id = r1.inq_id ORDER BY id DESC LIMIT 1), '01-01-1970') as completion_date, json_unquote(c1.raw_data->'$.post_fields.Area') as area, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.TL_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount') + json_unquote(c1.raw_data->'$.post_fields.CC_Loan_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount_In_Process'), ''), 0) ELSE 0 END AS loan_amount, CASE WHEN us1.id='".$userid."' THEN 'true' ELSE 'false' END as assign, CASE WHEN us1.id='".$userid."' THEN 'true' ELSE 'false' END as display FROM (SELECT DISTINCT(r1.inq_id) AS inq_id FROM tbl_tdrawassign r1, tbl_tdrawdata_cdates cd1 WHERE r1.inq_id = cd1.inq_id AND cd1.cdate < CURDATE() AND r1.user_id='".$userid."') ctbl1, (SELECT MAX(t2.id) AS r_id, t2.inq_id FROM tbl_tdrawassign t1 JOIN tbl_tdrawassign t2 ON t1.id = t2.id GROUP BY t2.inq_id) ltbl1, tbl_tdrawassign r1, tbl_tdrawdata c1, tbl_users us1 WHERE r1.id=ltbl1.r_id AND ctbl1.inq_id=r1.inq_id AND r1.inq_id = c1.id AND r1.user_id=us1.id AND r1.stage='lead'");
+    $stmt_company_list = $this->con->prepare("SELECT r1.inq_id, json_unquote(c1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(c1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(c1.raw_data->'$.post_fields.Mobile_No') as contact_no, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN 'Subsidy (Loan - Sactioned)' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN 'Loan - Want to Apply' WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN 'Subsidy (Loan - Under Process)' ELSE 'Yet to decide' END AS vertical, us1.name AS current_user_name, (SELECT u1.name from tbl_tdrawassign ra1, tbl_users u1 WHERE ra1.user_id=u1.id and user_id!=us1.id and ra1.inq_id=r1.inq_id order by ra1.id desc LIMIT 1) as forwarded_by, date_format(c1.raw_data_ts,'%d-%m-%Y') as received_on, COALESCE((SELECT date_format(cdate,'%d-%m-%Y') FROM tbl_tdrawdata_cdates WHERE inq_id = r1.inq_id ORDER BY id DESC LIMIT 1), '01-01-1970') as completion_date, json_unquote(c1.raw_data->'$.post_fields.Area') as area, CASE WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Sactioned Loan' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.TL_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Want to Apply?' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount') + json_unquote(c1.raw_data->'$.post_fields.CC_Loan_Amount'), ''), 0) WHEN json_unquote(c1.raw_data->'$.post_fields.loan_applied') = 'Loan Under Process' THEN COALESCE(NULLIF(json_unquote(c1.raw_data->'$.post_fields.Term_Loan_Amount_In_Process'), ''), 0) ELSE 0 END AS loan_amount, CASE WHEN us1.id='".$userid."' THEN 'true' ELSE 'false' END as assign, CASE WHEN us1.id='".$userid."' THEN 'true' ELSE 'false' END as radiobutton_display FROM (SELECT DISTINCT(r1.inq_id) AS inq_id FROM tbl_tdrawassign r1, tbl_tdrawdata_cdates cd1 WHERE r1.inq_id = cd1.inq_id AND cd1.cdate < CURDATE() AND r1.user_id='".$userid."') ctbl1, (SELECT MAX(t2.id) AS r_id, t2.inq_id FROM tbl_tdrawassign t1 JOIN tbl_tdrawassign t2 ON t1.id = t2.id GROUP BY t2.inq_id) ltbl1, tbl_tdrawassign r1, tbl_tdrawdata c1, tbl_users us1 WHERE r1.id=ltbl1.r_id AND ctbl1.inq_id=r1.inq_id AND r1.inq_id = c1.id AND r1.user_id=us1.id AND r1.stage='lead'");
     $stmt_company_list->execute();
     $company_result = $stmt_company_list->get_result();
     $stmt_company_list->close();

@@ -2430,7 +2430,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                     "Company_plot_id" => $res_company_plot["pid"],
                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
                     "Completion_Date" => isset($post_fields->Completion_Date)?date('d-m-Y',strtotime($post_fields->Completion_Date)):"",
-                    "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
+                    "Existing_client_status" => $res_company_plot["existing_client_status"]
                 );
 
                 //if(($res_company_plot["pid"]!=null || $res_company_plot["pid"]!="") && $plot["id"]!=""){
@@ -2517,7 +2517,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                                     "Company_plot_id" => $res_company_plot["pid"],
                                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
                                     "Completion_Date" => isset($post_fields->Completion_Date)?date('d-m-Y',strtotime($post_fields->Completion_Date)):"",
-                                    "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
+                                    "Existing_client_status" => $res_company_plot["existing_client_status"]
                                 );
                                 
                                 //if(($res_company_plot["pid"]!=null || $res_company_plot["pid"]!="") && $plot["id"]!=""){
@@ -2836,6 +2836,7 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
     $pr_company_plot_id = $data_request->company_plot_id;
     $pr_company_detail_id = $data_request->company_detail_id;
     $user_id = $data_request->user_id;
+    $location = isset($data_request->location)?$data_request->location:NULL;
     $existing_expansion_status = isset($data_request->existing_expansion_status)?$data_request->existing_expansion_status:"";
     $loan_sanction = isset($data_request->loan_sanction)?$data_request->loan_sanction:"";
     $completion_date = isset($data_request->completion_date)?$data_request->completion_date:"";
@@ -2999,7 +3000,7 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
         // insert into pr_company_detail and pr_company_plot table
         $inq_submit = "Submit";
         
-        $result_rawassign = $db->insert_pr_company_detail($source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$post_fields->state,$post_fields->city,$post_fields->Taluka,$post_fields->Area,$post_fields->IndustrialEstate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$plot_status,$pr_company_plot_id,$pr_company_detail_id);
+        $result_rawassign = $db->insert_pr_company_detail($source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$post_fields->state,$post_fields->city,$post_fields->Taluka,$post_fields->Area,$post_fields->IndustrialEstate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$plot_status,$pr_company_plot_id,$pr_company_detail_id,$location,$existing_expansion_status);
         
 
         if($result_rawassign>0)
@@ -3066,157 +3067,166 @@ $app->post('/add_additional_plot','authenticateUser', function () use ($app) {
     $data = array();
     $data["data"] = array();
 
-    $result_estate=$db->get_ind_estate_data($estate_id);
+    $result=$db->check_additional_plot($additional_plot_no,$road_no,$estate_id);
     
-    $to_plotno = NULL;
-    $resp_plot=$db->pr_estate_roadplot($estate_id,$road_number,$additional_plot_no,$to_plotno,$user_id);
-
-    if($resp_plot>0){
-        $cp = Array (
-            "post_fields" => Array (
-            "source" => "",
-            "Source_Name" => "",
-            "Contact_Name" => "",
-            "Mobile_No" => "",
-            "Email" => "",
-            "Designation_In_Firm" => "",
-            "Firm_Name" => "",
-            "GST_No" => "",
-            "Type_of_Company" => "",
-            "Category" => "",
-            "Segment" => "",
-            "Premise" => "",
-            "Factory_Address" => "",
-            "state" => $result_estate['state_id'],
-            "city" => $result_estate['city_id'],
-            "Taluka" => $result_estate['taluka'],
-            "Area" => $result_estate['area_id'],
-            "IndustrialEstate" => $result_estate['industrial_estate'],
-            "loan_applied" => "",
-            "Completion_Date" => "",
-            "Term_Loan_Amount" => "",
-            "CC_Loan_Amount" => "",
-            "Under_Process_Bank" => "",
-            "Under_Process_Branch" => "",
-            "Term_Loan_Amount_In_Process" => "",
-            "Under_Process_Date" => "",
-            "ROI" => "",
-            "Colletral" => "",
-            "Consultant" => "",
-            "Sanctioned_Bank" => "",
-            "Bank_Branch" => "",
-            "DOS" => "",
-            "TL_Amount" => "",
-            "Sactioned_Loan_Consultant" => "",
-            "category_type" => "",
-            "Remarks" => ""
-          ),
-          "inq_submit" => "Submit",
-          "bad_lead_reason" => "",
-          "bad_lead_reason_remark" => "",
-          "Image" => "",
-          "Constitution" => "",
-          "Status" => "",
-          "plot_details" => Array(
-            Array(
-              "Plot_No" => $additional_plot_no,
-              "Floor" => $floor,
-              "Road_No" => $road_no,
-              "Plot_Status" => "",
-              "Plot_Id" => "1",
-            ),
-          ) 
-        );
-         
-        // Encode array to json
-        $json = json_encode($cp);
-
-        $resp_tdrawdata_id=$db->insert_tbl_tdrawdata($json,$user_id);
-
-        // insert into pr_company_plot
-        $resp_company_plot=$db->company_plot_insert($additional_plot_no,$floor,$road_number,$plot_id,$estate_id,$user_id);
-        
-        $result_estate=$db->get_ind_estate($estate_id);
-        
-        $res_company_plot=$db->get_pr_company_details($result_estate['plotting_pattern'],$estate_id,$additional_plot_no,$floor,$road_no);
-
-        // dropdowns
-        $data["data"]["Refill Data"] = array();
-        $data["data"]["Industrial Estate"] = array();
-        $data["data"]["Plot No"] = array();
-        $data["data"]["Floor No"] = array();
-        $data["data"]["Filter"] = array();
-
-        // industrial estate
-        $resp_estate=$db->get_ind_estate_data($estate_id);
-        $temp_est = array();
-        $temp_est['industrial_estate_id'] = $resp_estate['id'];
-        $temp_est['industrial_estate'] = $resp_estate['industrial_estate'];
-        $temp_est['taluka'] = $resp_estate['taluka'];
-        $temp_est['area_id'] = $resp_estate['area_id'];
-        $temp_est = array_map('utf8_encode', $temp_est);
-        array_push($data['data']['Industrial Estate'], $temp_est);
-    
-        $refill_data = array();
-
-        if($road_no!=""){
-            $data["data"]["Road No"] = array();
-            $refill_data['road_no'] = $road_no;
-
-            // road no
-            $temp_road = array();
-            $temp_road['road_no'] = $road_no;
-            $temp_road = array_map('utf8_encode', $temp_road);
-            array_push($data['data']['Road No'], $temp_road);
-        }
-    
-        // plot no
-        $temp_plot = array();
-        $temp_plot["plot_no"] = $additional_plot_no;
-        $temp_plot = array_map('utf8_encode', $temp_plot);
-        array_push($data['data']['Plot No'], $temp_plot);
-
-        // floor no
-        $temp_floor = array();
-        $temp_floor["floor_no"] = ($floor=="0")?"Ground Floor":$floor;
-        $temp_floor = array_map('utf8_encode', $temp_floor);
-        array_push($data['data']['Floor No'], $temp_floor);
-    
-        // floor no
-        $temp_filter = array();
-        $temp_filter["filter"] = 'None';
-        $temp_filter = array_map('utf8_encode', $temp_filter);
-        array_push($data['data']['Filter'], $temp_filter);
-
-        $refill_data['estate_id'] = $estate_id;
-        $refill_data['filter'] = 'None';
-        $refill_data['plot_no'] = $additional_plot_no;
-        $refill_data['floor'] = ($floor=="0")?"Ground Floor":$floor;
-        $refill_data['Id'] = $resp_tdrawdata_id;
-        $refill_data['Plot_Id'] = $res_company_plot['plot_id'];
-        $refill_data['Company_detail_id'] = $res_company_plot['company_id'];
-        $refill_data['Company_plot_id'] = $res_company_plot['pid'];
-        
-        $refill_data = array_map('utf8_encode', $refill_data);
-        array_push($data['data']['Refill Data'], $refill_data);
-
-    }
-    else
-    {
-        $data['message'] = "An error occurred! Data not inserted";
-        $data['success'] = false;
-    }
-    
-    if($resp_company_plot)
-    {
-        $data['message'] = "Data added successfully";
-        $data['success'] = true;
-    }
-    else
-    {
+    if(mysqli_num_rows($result)>0){
         $data['data'] = "";
-        $data['message'] = "An error occurred";
+        $data['message'] = "Plot No. already exist!";
         $data['success'] = false;
+    }
+    else{
+        $result_estate=$db->get_ind_estate_data($estate_id);
+    
+        $to_plotno = NULL;
+        $resp_plot=$db->pr_estate_roadplot($estate_id,$road_number,$additional_plot_no,$to_plotno,$user_id);
+
+        if($resp_plot>0){
+            $cp = Array (
+                "post_fields" => Array (
+                "source" => "",
+                "Source_Name" => "",
+                "Contact_Name" => "",
+                "Mobile_No" => "",
+                "Email" => "",
+                "Designation_In_Firm" => "",
+                "Firm_Name" => "",
+                "GST_No" => "",
+                "Type_of_Company" => "",
+                "Category" => "",
+                "Segment" => "",
+                "Premise" => "",
+                "Factory_Address" => "",
+                "state" => $result_estate['state_id'],
+                "city" => $result_estate['city_id'],
+                "Taluka" => $result_estate['taluka'],
+                "Area" => $result_estate['area_id'],
+                "IndustrialEstate" => $result_estate['industrial_estate'],
+                "loan_applied" => "",
+                "Completion_Date" => "",
+                "Term_Loan_Amount" => "",
+                "CC_Loan_Amount" => "",
+                "Under_Process_Bank" => "",
+                "Under_Process_Branch" => "",
+                "Term_Loan_Amount_In_Process" => "",
+                "Under_Process_Date" => "",
+                "ROI" => "",
+                "Colletral" => "",
+                "Consultant" => "",
+                "Sanctioned_Bank" => "",
+                "Bank_Branch" => "",
+                "DOS" => "",
+                "TL_Amount" => "",
+                "Sactioned_Loan_Consultant" => "",
+                "category_type" => "",
+                "Remarks" => ""
+              ),
+              "inq_submit" => "Submit",
+              "bad_lead_reason" => "",
+              "bad_lead_reason_remark" => "",
+              "Image" => "",
+              "Constitution" => "",
+              "Status" => "",
+              "plot_details" => Array(
+                Array(
+                  "Plot_No" => $additional_plot_no,
+                  "Floor" => $floor,
+                  "Road_No" => $road_no,
+                  "Plot_Status" => "",
+                  "Plot_Id" => "1",
+                ),
+              ) 
+            );
+             
+            // Encode array to json
+            $json = json_encode($cp);
+
+            $resp_tdrawdata_id=$db->insert_tbl_tdrawdata($json,$user_id);
+
+            // insert into pr_company_plot
+            $resp_company_plot=$db->company_plot_insert($additional_plot_no,$floor,$road_number,$plot_id,$estate_id,$user_id);
+            
+            $result_estate=$db->get_ind_estate($estate_id);
+            
+            $res_company_plot=$db->get_pr_company_details($result_estate['plotting_pattern'],$estate_id,$additional_plot_no,$floor,$road_no);
+
+            // dropdowns
+            $data["data"]["Refill Data"] = array();
+            $data["data"]["Industrial Estate"] = array();
+            $data["data"]["Plot No"] = array();
+            $data["data"]["Floor No"] = array();
+            $data["data"]["Filter"] = array();
+
+            // industrial estate
+            $resp_estate=$db->get_ind_estate_data($estate_id);
+            $temp_est = array();
+            $temp_est['industrial_estate_id'] = $resp_estate['id'];
+            $temp_est['industrial_estate'] = $resp_estate['industrial_estate'];
+            $temp_est['taluka'] = $resp_estate['taluka'];
+            $temp_est['area_id'] = $resp_estate['area_id'];
+            $temp_est = array_map('utf8_encode', $temp_est);
+            array_push($data['data']['Industrial Estate'], $temp_est);
+        
+            $refill_data = array();
+
+            if($road_no!=""){
+                $data["data"]["Road No"] = array();
+                $refill_data['road_no'] = $road_no;
+
+                // road no
+                $temp_road = array();
+                $temp_road['road_no'] = $road_no;
+                $temp_road = array_map('utf8_encode', $temp_road);
+                array_push($data['data']['Road No'], $temp_road);
+            }
+        
+            // plot no
+            $temp_plot = array();
+            $temp_plot["plot_no"] = $additional_plot_no;
+            $temp_plot = array_map('utf8_encode', $temp_plot);
+            array_push($data['data']['Plot No'], $temp_plot);
+
+            // floor no
+            $temp_floor = array();
+            $temp_floor["floor_no"] = ($floor=="0")?"Ground Floor":$floor;
+            $temp_floor = array_map('utf8_encode', $temp_floor);
+            array_push($data['data']['Floor No'], $temp_floor);
+        
+            // floor no
+            $temp_filter = array();
+            $temp_filter["filter"] = 'None';
+            $temp_filter = array_map('utf8_encode', $temp_filter);
+            array_push($data['data']['Filter'], $temp_filter);
+
+            $refill_data['estate_id'] = $estate_id;
+            $refill_data['filter'] = 'None';
+            $refill_data['plot_no'] = $additional_plot_no;
+            $refill_data['floor'] = ($floor=="0")?"Ground Floor":$floor;
+            $refill_data['Id'] = $resp_tdrawdata_id;
+            $refill_data['Plot_Id'] = $res_company_plot['plot_id'];
+            $refill_data['Company_detail_id'] = $res_company_plot['company_id'];
+            $refill_data['Company_plot_id'] = $res_company_plot['pid'];
+            
+            $refill_data = array_map('utf8_encode', $refill_data);
+            array_push($data['data']['Refill Data'], $refill_data);
+
+        }
+        else
+        {
+            $data['message'] = "An error occurred! Data not inserted";
+            $data['success'] = false;
+        }
+        
+        if($resp_company_plot)
+        {
+            $data['message'] = "Data added successfully";
+            $data['success'] = true;
+        }
+        else
+        {
+            $data['data'] = "";
+            $data['message'] = "An error occurred";
+            $data['success'] = false;
+        }
     }
 
     echoResponse(200, $data);
@@ -4611,8 +4621,6 @@ $app->post('/overdue_lead_list','authenticateUser', function () use ($app) {
             foreach ($row as $key => $value) {
                 $temp[$key] = $value;
             }
-            $temp['assign'] = "false";
-            $temp['radiobutton_display'] = "false";
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data']['overdue'], $temp);
         }
@@ -4721,6 +4729,8 @@ $app->post('/involved_lead_list','authenticateUser', function () use ($app) {
             foreach ($row as $key => $value) {
                 $temp[$key] = $value;
             }
+            $temp['assign'] = "false";
+            $temp['radiobutton_display'] = "false";
             $temp = array_map('utf8_encode', $temp);
             array_push($data['data']['involved'], $temp);
         }
