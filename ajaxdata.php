@@ -754,22 +754,22 @@ if(isset($_REQUEST['action']))
 	  	else if($plotting_pattern=="Series"){
 
 	  		if($filter=="visit_pending"){
-	  			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and company_id IS NULL order by abs(plot_no)");
+	  			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 on p1.company_id=d1.cid where p1.industrial_estate_id=? AND ((d1.image IS NULL) OR (d1.image='')) order by abs(plot_no)");
 	  		}
 			else if($filter=="open_plot"){
-				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_status='Open Plot' order by abs(plot_no)");
+				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 ON p1.company_id=d1.cid WHERE p1.industrial_estate_id=? and plot_status='Open Plot' AND ((d1.image IS NOT NULL) AND (d1.image!='')) order by abs(plot_no)");
 			}
 			else if($filter=="positive"){
-				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by abs(p1.plot_no)");
 			}
 			else if($filter=="negative"){
-				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by abs(p1.plot_no)");
 			}
 			else if($filter=="existing_client"){
-				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by abs(p1.plot_no)");
 			}
 			else if($filter=="no_filter"){
-				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? order by abs(p1.plot_no)");
+				$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and ((c1.image IS NOT NULL) AND (c1.image!='')) and p1.industrial_estate_id=? order by abs(p1.plot_no)");
 			}
 
 			$stmt_plot->bind_param("i",$estate_id);
@@ -795,22 +795,22 @@ if(isset($_REQUEST['action']))
 		$filter=$_REQUEST['filter'];
 
 		if($filter=="visit_pending"){
-			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and road_no=? and company_id IS NULL order by abs(plot_no)");
+			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 on p1.company_id=d1.cid where p1.industrial_estate_id=? AND p1.road_no=? AND ((d1.image IS NULL) OR (d1.image='')) order by abs(plot_no)");
 		}
 		else if($filter=="open_plot"){
-			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and road_no=? and plot_status='Open Plot' order by abs(plot_no)");
+			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 ON p1.company_id=d1.cid WHERE p1.industrial_estate_id=? AND p1.road_no=? and plot_status='Open Plot' AND ((d1.image IS NOT NULL) AND (d1.image!='')) order by abs(plot_no)");
 		}
 		else if($filter=="positive"){
-			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? AND p1.road_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by abs(p1.plot_no)");
 		}
 		else if($filter=="negative"){
-			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? AND p1.road_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by abs(p1.plot_no)");
 		}
 		else if($filter=="existing_client"){
-			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? AND p1.road_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by abs(p1.plot_no)");
 		}
 		else if($filter=="no_filter"){
-			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? order by abs(p1.plot_no)");
+			$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(p1.plot_no) FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and ((c1.image IS NOT NULL) AND (c1.image!='')) and p1.industrial_estate_id=? AND p1.road_no=? order by abs(p1.plot_no)");
 		}
 
 		$stmt_plot->bind_param("is",$estate_id,$road_no);
@@ -845,44 +845,44 @@ if(isset($_REQUEST['action']))
 
 		if($plotting_pattern=='Series'){
 			if($filter=="visit_pending"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_no=? and company_id IS NULL order by floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 on p1.company_id=d1.cid where p1.industrial_estate_id=? AND p1.plot_no=? AND ((d1.image IS NULL) OR (d1.image='')) order by p1.floor");
 			}
 			else if($filter=="open_plot"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM `pr_company_plots` WHERE industrial_estate_id=? and plot_no=? and plot_status='Open Plot' order by floor");	
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 ON p1.company_id=d1.cid WHERE p1.industrial_estate_id=? AND p1.plot_no=? AND plot_status='Open Plot' AND ((d1.image IS NOT NULL) AND (d1.image!='')) order by p1.floor");	
 			}
 			else if($filter=="positive"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? AND p1.plot_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by p1.floor");
 			}
 			else if($filter=="negative"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? AND p1.plot_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by p1.floor");
 			}
 			else if($filter=="existing_client"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? AND p1.plot_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by p1.floor");
 			}
 			else if($filter=="no_filter"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and ((c1.image IS NOT NULL) AND (c1.image!='')) and p1.industrial_estate_id=? AND p1.plot_no=? order by p1.floor");
 			}
 			
 			$stmt_floor->bind_param("is",$estate_id,$plot_no);
 		}
 		else if($plotting_pattern=='Road'){
 			if($filter=="visit_pending"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM `pr_company_plots` WHERE industrial_estate_id=? and  road_no=? and plot_no=? and company_id IS NULL order by floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 on p1.company_id=d1.cid where p1.industrial_estate_id=? AND p1.road_no=? AND p1.plot_no=? AND ((d1.image IS NULL) OR (d1.image='')) order by p1.floor");
 			}
 			else if($filter=="open_plot"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM `pr_company_plots` WHERE industrial_estate_id=? and road_no=? and plot_no=? and plot_status='Open Plot' order by floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` d1 ON p1.company_id=d1.cid WHERE p1.industrial_estate_id=? AND p1.road_no=? AND p1.plot_no=? AND plot_status='Open Plot' AND ((d1.image IS NOT NULL) AND (d1.image!='')) order by p1.floor");
 			}
 			else if($filter=="positive"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Positive' and p1.industrial_estate_id=? AND p1.road_no=? AND p1.plot_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by p1.floor");
 			}
 			else if($filter=="negative"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Negative' and p1.industrial_estate_id=? AND p1.road_no=? AND p1.plot_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by p1.floor");
 			}
 			else if($filter=="existing_client"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and c1.status='Existing Client' and p1.industrial_estate_id=? AND p1.road_no=? AND p1.plot_no=? AND ((c1.image IS NOT NULL) AND (c1.image!='')) order by p1.floor");
 			}
 			else if($filter=="no_filter"){
-				$stmt_floor = $obj->con1->prepare("SELECT * FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and p1.company_id IS NOT NULL and p1.industrial_estate_id=? and p1.road_no=? and p1.plot_no=? order by p1.floor");
+				$stmt_floor = $obj->con1->prepare("SELECT p1.floor FROM pr_company_plots p1, pr_company_details c1 WHERE p1.company_id=c1.cid and (c1.status NOT IN ('Positive','Negative','Existing Client') OR c1.status IS null) and p1.plot_status!='Open Plot' and ((c1.image IS NOT NULL) AND (c1.image!='')) and p1.industrial_estate_id=? AND p1.road_no=? AND p1.plot_no=? order by p1.floor");
 			}
 			$stmt_floor->bind_param("iss",$estate_id,$road_no,$plot_no);
 		}
@@ -926,11 +926,11 @@ if(isset($_REQUEST['action']))
 			$pr_comp_status = "";
 
 			if($plotting_pattern=="Series"){
-				$stmt_company_plot = $obj->con1->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=?");
+				$stmt_company_plot = $obj->con1->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id, c1.existing_client_status FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=?");
 				$stmt_company_plot->bind_param("sii",$plot_no,$floor_no,$estate_id);
 			}
 			else if($plotting_pattern=="Road"){
-				$stmt_company_plot = $obj->con1->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=? and p1.road_no=?");
+				$stmt_company_plot = $obj->con1->prepare("SELECT p1.pid, p1.company_id, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, p1.plot_id, c1.image, c1.constitution, c1.status, c1.rawdata_id, c1.existing_client_status FROM `pr_company_plots` p1 LEFT JOIN `pr_company_details` c1 on p1.company_id=c1.cid WHERE p1.plot_no=? and p1.floor=? and p1.industrial_estate_id=? and p1.road_no=?");
 				$stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$estate_id,$road_no);
 			}
 			$stmt_company_plot->execute();
@@ -1011,7 +1011,7 @@ if(isset($_REQUEST['action']))
 							"Company_plot_id" => $pr_company_plot["pid"],
                             "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
                             "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
-                            "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
+                            "Existing_client_status" => ($pr_company_plot["existing_client_status"]==NULL)?"":$pr_company_plot["existing_client_status"]
 						);
 						break;
 					}
@@ -1094,7 +1094,7 @@ if(isset($_REQUEST['action']))
 									"Company_plot_id" => $pr_company_plot["pid"],
 	                                "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
 	                                "Completion_Date" => isset($post_fields->Completion_Date)?$post_fields->Completion_Date:"",
-	                                "Existing_client_status" => isset($post_fields->Existing_client_status)?$post_fields->Existing_client_status:""
+	                                "Existing_client_status" => ($pr_company_plot["existing_client_status"]==NULL)?"":$pr_company_plot["existing_client_status"]
 								);
 								
 								break;
@@ -1404,7 +1404,7 @@ if(isset($_REQUEST['action']))
 
 			<div class="mb-3">
 			<label class="form-label" for="basic-default-fullname">Road No.</label>
-			<select name="road_no_plotmodal" id="road_no_plotmodal" class="form-control" onchange="get_plotno_plotmodal(this.value,estateid_plotmodal.value,'.$plot_no.','.$road_no.')">
+			<select name="road_no_plotmodal" id="road_no_plotmodal" class="form-control" onchange="get_plotno_plotmodal(this.value,estateid_plotmodal.value,\''.$plot_no.'\',\''.$road_no.'\')">
 			<option value="">Select Road No.</option>';
 			while($road = mysqli_fetch_array($road_res)){
 				$html.='<option value="'.$road["road_no"].'">'.$road["road_no"].'</option>';

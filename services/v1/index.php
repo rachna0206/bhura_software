@@ -2420,7 +2420,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                     "Constitution" => isset($res_company_plot['constitution'])?$res_company_plot['constitution']:"",
                     "Category" => $post_fields->Category,
                     "Segment" => $post_fields->Segment,
-                    "Status" => isset($res_company_plot['status'])?$res_company_plot['status']:"",
+                    "Status" => $status,
                     "Reason" => $reason,
                     "source" => $post_fields->source,
                     "Source_Name" => $post_fields->Source_Name,
@@ -2844,6 +2844,8 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
     $badlead_type = "lead";
     $PicFileName="";
 
+    $update_location = false;
+
     $completion_date = date("Y-m-d", strtotime($completion_date));
 
     $db = new DbOperation();
@@ -2862,6 +2864,7 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
     $old_img = $row_data->Image;
     
     if(isset($_FILES["company_img"]["name"])!=""){
+        $update_location = true;
         if($old_img!="" && file_exists("../../gst_image/".$old_img)){
             unlink("../../gst_image/".$old_img); 
         }
@@ -2886,6 +2889,7 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
         move_uploaded_file($img_path,"../../gst_image/".$PicFileName);
     }
     else{
+        $update_location = false;
         $PicFileName=$old_img;
     }
 
@@ -2957,50 +2961,52 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
             $followup_date = date("Y-m-d");
             $admin_userid = '1';
 
-            if($status=="Positive" || $status=="Negative"){
-                if($db->checkCompany_rawassign($id)){
-                    // insert into follow up
-                    $followup_text = "<p>".$res_username['name']." has edited a lead data in system.</p>";
-                    
-                    $result_followup = $db->insert_followup($user_id,$id,$followup_text,$followup_source,$followup_date);
-                }
-                else{
-                    // insert into raw assign and follow up
-                    $raw_assign_status = "lead";
-                    $followup_text = "<p>".$res_username['name']." has added a data in system.</p>";
-                    
-                    $result_rawassign = $db->insert_rawassign($id,$admin_userid,$raw_assign_status);
-
-                    $result_followup = $db->insert_followup($user_id,$id,$followup_text,$followup_source,$followup_date);
-                }
-
-                if($status=='Negative'){
-                    if($db->check_for_badlead($id)==0){
-                      $badlead_raw_assign_status = "badlead";
-                      $badlead_followup_text = $res_username['name']." has marked lead as BAD LEAD. <br />Reason: ".$badlead_reason." <br />Remark: ".$remark;
-
-                      $result_followup = $db->insert_badleads($badlead_reason,$remark,$id,$user_id,$badlead_type);
-
-                      $result_rawassign = $db->insert_rawassign($id,$admin_userid,$badlead_raw_assign_status);
-
-                      $result_followup = $db->insert_followup($user_id,$id,$badlead_followup_text,$followup_source,$followup_date);
-                    }  
-                }
-                else{
-                    if($db->check_for_badlead($id)==1){
-                      // insert into raw assign and follow up
-                      $raw_assign_status = "lead";
-                      
-                      $result_rawassign = $db->insert_rawassign($id,$admin_userid,$raw_assign_status);
+            if($plot_status!="" && $gst_no!="" && $firm_name!="" && $contact_person!="" && $contact_no!="" && $status!="" && $source!="" && $source_name!="" && $remark!="" && $PicFileName!=""){
+                if($status=="Positive" || $status=="Negative"){
+                    if($db->checkCompany_rawassign($id)){
+                        // insert into follow up
+                        $followup_text = "<p>".$res_username['name']." has edited a lead data in system.</p>";
+                        
+                        $result_followup = $db->insert_followup($user_id,$id,$followup_text,$followup_source,$followup_date);
                     }
-                }
-            }  
+                    else{
+                        // insert into raw assign and follow up
+                        $raw_assign_status = "lead";
+                        $followup_text = "<p>".$res_username['name']." has added a data in system.</p>";
+                        
+                        $result_rawassign = $db->insert_rawassign($id,$admin_userid,$raw_assign_status);
+
+                        $result_followup = $db->insert_followup($user_id,$id,$followup_text,$followup_source,$followup_date);
+                    }
+
+                    if($status=='Negative'){
+                        if($db->check_for_badlead($id)==0){
+                          $badlead_raw_assign_status = "badlead";
+                          $badlead_followup_text = $res_username['name']." has marked lead as BAD LEAD. <br />Reason: ".$badlead_reason." <br />Remark: ".$remark;
+
+                          $result_followup = $db->insert_badleads($badlead_reason,$remark,$id,$user_id,$badlead_type);
+
+                          $result_rawassign = $db->insert_rawassign($id,$admin_userid,$badlead_raw_assign_status);
+
+                          $result_followup = $db->insert_followup($user_id,$id,$badlead_followup_text,$followup_source,$followup_date);
+                        }  
+                    }
+                    else{
+                        if($db->check_for_badlead($id)==1){
+                          // insert into raw assign and follow up
+                          $raw_assign_status = "lead";
+                          
+                          $result_rawassign = $db->insert_rawassign($id,$admin_userid,$raw_assign_status);
+                        }
+                    }
+                } 
+            } 
         }
 
         // insert into pr_company_detail and pr_company_plot table
         $inq_submit = "Submit";
         
-        $result_rawassign = $db->insert_pr_company_detail($source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$post_fields->state,$post_fields->city,$post_fields->Taluka,$post_fields->Area,$post_fields->IndustrialEstate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$plot_status,$pr_company_plot_id,$pr_company_detail_id,$location,$existing_expansion_status);
+        $result_rawassign = $db->insert_pr_company_detail($source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$post_fields->state,$post_fields->city,$post_fields->Taluka,$post_fields->Area,$post_fields->IndustrialEstate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$plot_status,$pr_company_plot_id,$pr_company_detail_id,$location,$existing_expansion_status,$update_location);
         
 
         if($result_rawassign>0)

@@ -274,73 +274,75 @@ if(isset($_REQUEST['btnsubmit']))
       $followup_date = date("Y-m-d");
       $admin_userid = '1';
 
-      if($status=="Positive" || $status=="Negative")
-      {
-        if(checkCompany_rawassign($id)){
-          // insert into follow up
-          $followup_text = "<p>".$_SESSION["username"]." has edited a lead data in system.</p>";
-          
-          $stmt_followup = $obj->con1->prepare("INSERT INTO `tbl_tdfollowup`(`user_id`, `inq_id`, `followup_text`, `followup_source`, `followup_date`) VALUES (?,?,?,?,?)");
-          $stmt_followup->bind_param("iisss",$user_id,$id,$followup_text,$followup_source,$followup_date);
-          $Resp=$stmt_followup->execute();
-          $stmt_followup->close();
-        }
-        else{
-          // insert into raw assign and follow up
-          $raw_assign_status = "lead";
-          $followup_text = "<p>".$_SESSION["username"]." has added a data in system.</p>";
-          
-          $stmt_status = $obj->con1->prepare("INSERT INTO `tbl_tdrawassign`(`inq_id`, `user_id`, `stage`) VALUES (?,?,?)");
-          $stmt_status->bind_param("iis",$id,$admin_userid,$raw_assign_status);
-          $Resp=$stmt_status->execute();
-          $stmt_status->close();
-
-          $stmt_followup = $obj->con1->prepare("INSERT INTO `tbl_tdfollowup`(`user_id`, `inq_id`, `followup_text`, `followup_source`, `followup_date`) VALUES (?,?,?,?,?)");
-          $stmt_followup->bind_param("iisss",$user_id,$id,$followup_text,$followup_source,$followup_date);
-          $Resp=$stmt_followup->execute();
-          $stmt_followup->close();
-        }
-
-        if($status=='Negative'){
-          if(check_for_badlead($id)==0){
-            $badlead_raw_assign_status = "badlead";
-            $badlead_followup_text = $_SESSION["username"]." has marked lead as BAD LEAD. <br />Reason: ".$badlead_reason." <br />Remark: ".$remark;
-
-            $stmt_badlead = $obj->con1->prepare("INSERT INTO `tbl_tdbadleads`(`bad_lead_reason`, `bad_lead_reason_remark`, `inq_id`, `user_id`, `type`) VALUES (?,?,?,?,?)");
-            $stmt_badlead->bind_param("sssis",$badlead_reason,$remark,$id,$user_id,$badlead_type);
-            $Resp=$stmt_badlead->execute();
-            $stmt_badlead->close();
-
-            $stmt_status = $obj->con1->prepare("INSERT INTO `tbl_tdrawassign`(`inq_id`, `user_id`, `stage`) VALUES (?,?,?)");
-            $stmt_status->bind_param("iis",$id,$admin_userid,$badlead_raw_assign_status);
-            $Resp=$stmt_status->execute();
-            $stmt_status->close();
-
+      if($plot_status!="" && $gst_no!="" && $firm_name!="" && $contact_person!="" && $contact_no!="" && $status!="" && $source!="" && $source_name!="" && $remark!="" && $PicFileName!=""){
+        if($status=="Positive" || $status=="Negative")
+        {
+          if(checkCompany_rawassign($id)){
+            // insert into follow up
+            $followup_text = "<p>".$_SESSION["username"]." has edited a lead data in system.</p>";
+            
             $stmt_followup = $obj->con1->prepare("INSERT INTO `tbl_tdfollowup`(`user_id`, `inq_id`, `followup_text`, `followup_source`, `followup_date`) VALUES (?,?,?,?,?)");
-            $stmt_followup->bind_param("iisss",$user_id,$id,$badlead_followup_text,$followup_source,$followup_date);
+            $stmt_followup->bind_param("iisss",$user_id,$id,$followup_text,$followup_source,$followup_date);
             $Resp=$stmt_followup->execute();
             $stmt_followup->close();
-          }  
-        }
-        else{
-          if(check_for_badlead($id)==1){
+          }
+          else{
             // insert into raw assign and follow up
             $raw_assign_status = "lead";
+            $followup_text = "<p>".$_SESSION["username"]." has added a data in system.</p>";
             
             $stmt_status = $obj->con1->prepare("INSERT INTO `tbl_tdrawassign`(`inq_id`, `user_id`, `stage`) VALUES (?,?,?)");
             $stmt_status->bind_param("iis",$id,$admin_userid,$raw_assign_status);
             $Resp=$stmt_status->execute();
             $stmt_status->close();
+
+            $stmt_followup = $obj->con1->prepare("INSERT INTO `tbl_tdfollowup`(`user_id`, `inq_id`, `followup_text`, `followup_source`, `followup_date`) VALUES (?,?,?,?,?)");
+            $stmt_followup->bind_param("iisss",$user_id,$id,$followup_text,$followup_source,$followup_date);
+            $Resp=$stmt_followup->execute();
+            $stmt_followup->close();
           }
-        }  
+
+          if($status=='Negative'){
+            if(check_for_badlead($id)==0){
+              $badlead_raw_assign_status = "badlead";
+              $badlead_followup_text = $_SESSION["username"]." has marked lead as BAD LEAD. <br />Reason: ".$badlead_reason." <br />Remark: ".$remark;
+
+              $stmt_badlead = $obj->con1->prepare("INSERT INTO `tbl_tdbadleads`(`bad_lead_reason`, `bad_lead_reason_remark`, `inq_id`, `user_id`, `type`) VALUES (?,?,?,?,?)");
+              $stmt_badlead->bind_param("sssis",$badlead_reason,$remark,$id,$user_id,$badlead_type);
+              $Resp=$stmt_badlead->execute();
+              $stmt_badlead->close();
+
+              $stmt_status = $obj->con1->prepare("INSERT INTO `tbl_tdrawassign`(`inq_id`, `user_id`, `stage`) VALUES (?,?,?)");
+              $stmt_status->bind_param("iis",$id,$admin_userid,$badlead_raw_assign_status);
+              $Resp=$stmt_status->execute();
+              $stmt_status->close();
+
+              $stmt_followup = $obj->con1->prepare("INSERT INTO `tbl_tdfollowup`(`user_id`, `inq_id`, `followup_text`, `followup_source`, `followup_date`) VALUES (?,?,?,?,?)");
+              $stmt_followup->bind_param("iisss",$user_id,$id,$badlead_followup_text,$followup_source,$followup_date);
+              $Resp=$stmt_followup->execute();
+              $stmt_followup->close();
+            }  
+          }
+          else{
+            if(check_for_badlead($id)==1){
+              // insert into raw assign and follow up
+              $raw_assign_status = "lead";
+              
+              $stmt_status = $obj->con1->prepare("INSERT INTO `tbl_tdrawassign`(`inq_id`, `user_id`, `stage`) VALUES (?,?,?)");
+              $stmt_status->bind_param("iis",$id,$admin_userid,$raw_assign_status);
+              $Resp=$stmt_status->execute();
+              $stmt_status->close();
+            }
+          }  
+        }
       }
     }
 
     // insert into pr_company_detail and pr_company_plot table
     if($pr_company_detail_id==""){
       
-      $stmt_pr_company_detail = $obj->con1->prepare("INSERT INTO `pr_company_details`(`source`, `source_name`, `contact_name`, `mobile_no`, `firm_name`, `gst_no`, `category`, `segment`, `premise`, `state`, `city`, `taluka`, `area`, `industrial_estate`, `remarks`, `inq_submit`, `image`, `constitution`, `status`, `industrial_estate_id`, `user_id`, `rawdata_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-      $stmt_pr_company_detail->bind_param("sssssssssssssssssssiii",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$post_fields->state,$post_fields->city,$post_fields->Taluka,$post_fields->Area,$post_fields->IndustrialEstate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id);
+      $stmt_pr_company_detail = $obj->con1->prepare("INSERT INTO `pr_company_details`(`source`, `source_name`, `contact_name`, `mobile_no`, `firm_name`, `gst_no`, `category`, `segment`, `premise`, `state`, `city`, `taluka`, `area`, `industrial_estate`, `remarks`, `inq_submit`, `image`, `constitution`, `status`, `industrial_estate_id`, `user_id`, `rawdata_id`, `existing_client_status`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+      $stmt_pr_company_detail->bind_param("sssssssssssssssssssiiis",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$post_fields->state,$post_fields->city,$post_fields->Taluka,$post_fields->Area,$post_fields->IndustrialEstate,$remark,$inq_submit,$PicFileName,$constitution,$status,$industrial_estate_id,$user_id,$id,$expansion_status);
       $Resp=$stmt_pr_company_detail->execute();
       $last_insert_company_id = mysqli_insert_id($obj->con1);
       $stmt_pr_company_detail->close();
@@ -352,8 +354,8 @@ if(isset($_REQUEST['btnsubmit']))
       $stmt_pr_company_plot->close();
     }
     else{
-      $stmt_pr_company_detail = $obj->con1->prepare("UPDATE `pr_company_details` SET `source`=?, `source_name`=?, `contact_name`=?, `mobile_no`=?, `firm_name`=?, `gst_no`=?, `category`=?, `segment`=?, `premise`=?, `remarks`=?, `inq_submit`=?, `image`=?, `constitution`=?, `status`=?, `user_id`=?, `rawdata_id`=? WHERE `cid`=?");
-      $stmt_pr_company_detail->bind_param("ssssssssssssssiii",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$remark,$inq_submit,$PicFileName,$constitution,$status,$user_id,$id,$pr_company_detail_id);
+      $stmt_pr_company_detail = $obj->con1->prepare("UPDATE `pr_company_details` SET `source`=?, `source_name`=?, `contact_name`=?, `mobile_no`=?, `firm_name`=?, `gst_no`=?, `category`=?, `segment`=?, `premise`=?, `remarks`=?, `inq_submit`=?, `image`=?, `constitution`=?, `status`=?, `user_id`=?, `rawdata_id`=?, `existing_client_status`=? WHERE `cid`=?");
+      $stmt_pr_company_detail->bind_param("ssssssssssssssiisi",$source,$source_name,$contact_person,$contact_no,$firm_name,$gst_no,$category,$segment,$premise,$remark,$inq_submit,$PicFileName,$constitution,$status,$user_id,$id,$expansion_status,$pr_company_detail_id);
       $Resp=$stmt_pr_company_detail->execute();
       $stmt_pr_company_detail->close();
 
@@ -1580,7 +1582,10 @@ if(isset($_COOKIE["msg"]) )
             <input class="form-check-input" type="radio" name="expansion" id="negative_expansion" value="negative for expansion" >
             <label class="form-check-label" for="inlineRadio1">Negative for expansion</label>
           </div>
-         
+          <div class="form-check form-check-inline mt-3">
+            <input class="form-check-input" type="radio" name="expansion" id="no_work" value="No Work" >
+            <label class="form-check-label" for="inlineRadio1">No Work</label>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -1943,6 +1948,9 @@ if(isset($_COOKIE["msg"]) )
           }  
           else if(res['Existing_client_status']=="negative for expansion"){
             $('#negative_expansion').prop("checked","checked");
+          }
+          else if(res['Existing_client_status']=="No Work"){
+            $('#no_work').prop("checked","checked");
           }
 
           $('#sanction_hidden').val('none');
