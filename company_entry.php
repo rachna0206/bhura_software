@@ -189,7 +189,7 @@ if(isset($_REQUEST['btnsubmit']))
 
   try
   {
-    if($filter=="visit_pending" || $filter=="none"){
+    if($pr_company_detail_id==""){
       $todays_date = date("Y-m-d H:i:s");
       $stmt = $obj->con1->prepare("update tbl_tdrawdata set raw_data=?, userid=?, raw_data_ts=? where id=?");
       $stmt->bind_param("sisi",$json_object,$user_id,$todays_date,$id);

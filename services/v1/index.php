@@ -2943,7 +2943,7 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
 
     $json_object = json_encode($row_data);
 
-    $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter);
+    $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter,$pr_company_detail_id);
 
     if($result==-1){
         $data['message'] = "An error occurred";

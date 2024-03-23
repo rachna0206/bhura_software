@@ -656,9 +656,9 @@ public function get_rawdata($id)
 }
 
 // update table tbl_tdrawdata
-public function update_tbl_tdrawdata($json,$user_id,$id,$filter)
+public function update_tbl_tdrawdata($json,$user_id,$id,$filter,$pr_company_detail_id)
 {
-    if(strtolower($filter)=="visit pending" || strtolower($filter)=="none"){
+    if($pr_company_detail_id=="" || $pr_company_detail_id==null || $pr_company_detail_id=="null"){
       $todays_date = date("Y-m-d H:i:s");
       $stmt = $this->con->prepare("update tbl_tdrawdata set raw_data=?, userid=?, raw_data_ts=? where id=?");
       $stmt->bind_param("sisi",$json,$user_id,$todays_date,$id);
