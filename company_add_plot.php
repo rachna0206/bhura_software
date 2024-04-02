@@ -24,56 +24,52 @@
         
   }
 
-
-
-
-// State List
-$stmt_state_list = $obj->con1->prepare("select DISTINCT(state_id) from tbl_industrial_estate where state_id='GUJARAT'");
-$stmt_state_list->execute();
-$state_result = $stmt_state_list->get_result();
-$stmt_state_list->close();
-
-// City List
-$stmt_city = $obj->con1->prepare("select DISTINCT(city_id) from tbl_industrial_estate where state_id='GUJARAT' and city_id='SURAT'");
-$stmt_city->execute();
-$city_result = $stmt_city->get_result();
-$stmt_city->close();
-
-// Taluka List
-$stmt_taluka = $obj->con1->prepare("select DISTINCT(taluka) from tbl_industrial_estate where state_id='GUJARAT' and city_id='SURAT'");
-$stmt_taluka->execute();
-$taluka_result = $stmt_taluka->get_result();
-$stmt_taluka->close();
-
 // insert data for select estate first
 if(isset($_REQUEST['btnsubmit_est']))
 {
   $industrial_estate_id = $_REQUEST['industrial_estate_id_est'];
   $plot_no = $_REQUEST['plot_no_est'];
-  $road_no = $_REQUEST['road_no_est'];
+  $road_no = isset($_REQUEST['road_no_est'])?$_REQUEST['road_no_est']:"";
   $floor = $_REQUEST['floor_est'];
+  $floor_no = $_REQUEST['floor_est'];
   $rawdata_id = $_REQUEST['rawdata_id_est'];
   $plotting_pattern = $_REQUEST['plotting_pattern_est'];
   $factory_address=$_REQUEST['factory_address_est'];
 
-  $str_arr = explode (",", $floor); 
-  $plot_rawdata_id = $str_arr[0];
-  $floor_no = $str_arr[1];
   $road_number = ($road_no=="")?NULL:$road_no;
 
   // get industrial est name
+  $stmt_ind_est = $obj->con1->prepare("SELECT * FROM `tbl_industrial_estate` WHERE id=?");
+  $stmt_ind_est->bind_param("i",$industrial_estate_id);
+  $stmt_ind_est->execute();
+  $ind_est_result = $stmt_ind_est->get_result()->fetch_assoc();
+  $stmt_ind_est->close();
 
-    $stmt_ind_est = $obj->con1->prepare("SELECT * FROM `tbl_industrial_estate` WHERE id=?");
-    $stmt_ind_est->bind_param("i",$industrial_estate_id);
-    $stmt_ind_est->execute();
-    $ind_est_result = $stmt_ind_est->get_result()->fetch_assoc();
-    $stmt_ind_est->close();
+  // get id from tbl_tdrawdata of selected plot_no and floor_no
+  $stmt_plot_search = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($ind_est_result['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($ind_est_result['area_id'])."%' and lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($ind_est_result['taluka'])."%'");
+  $stmt_plot_search->execute();
+  $plot_search = $stmt_plot_search->get_result();
+  $stmt_plot_search->close();
+
+  $plot_rawdata_id = "";
+  if(mysqli_num_rows($plot_search)>0){
+    while($plot_search_result=mysqli_fetch_array($plot_search)){
+      $row_data_plot_search=json_decode($plot_search_result["raw_data"]);
+      if($row_data_plot_search->post_fields->IndustrialEstate==$ind_est_result['industrial_estate'] && $row_data_plot_search->post_fields->Taluka==$ind_est_result['taluka'] && $row_data_plot_search->post_fields->Area==$ind_est_result['area_id']){
+        foreach ($row_data_plot_search->plot_details as $pd) {
+          if($pd->Plot_No==$plot_no && $pd->Floor==$floor_no && $pd->Road_No==$road_no){
+            $plot_rawdata_id=$plot_search_result["id"];
+            break;
+          }
+        }
+      }
+    }
+  }
 
   if($plot_rawdata_id==""){
     // New Floor is Added
 
     $plot_id='1';
-       
     $stmt_company_list = $obj->con1->prepare("SELECT * FROM `tbl_tdrawdata` WHERE id=?");
     $stmt_company_list->bind_param("i",$rawdata_id);
     $stmt_company_list->execute();
@@ -103,7 +99,6 @@ if(isset($_REQUEST['btnsubmit_est']))
               "Plot_Id" => "1",
             ));
     $json_object = json_encode($row_data_comp);
-    
 
     // get company details for pr_company_details
     $post_fields_comp = $row_data_comp->post_fields;
@@ -125,7 +120,6 @@ if(isset($_REQUEST['btnsubmit_est']))
 
     try {
       // update json of company
-     
       $stmt = $obj->con1->prepare("UPDATE `tbl_tdrawdata` set raw_data=? where id=?");
       $stmt->bind_param("si",$json_object,$company_result['id']);
       $Resp=$stmt->execute();
@@ -140,7 +134,7 @@ if(isset($_REQUEST['btnsubmit_est']))
 
       // insert in pr_company_plot
       $stmt_company_plot = $obj->con1->prepare("INSERT INTO `pr_company_plots`(`plot_no`, `floor`, `road_no`, `plot_id`, `industrial_estate_id`, `user_id`,`company_id`) VALUES (?,?,?,?,?,?,?)");
-      $stmt_company_plot->bind_param("ssssiii",$plot_no,$floor_no,$road_number,$plot_id,$industrial_estate_id,$user_id,$last_insert_company_id);
+      $stmt_company_plot->bind_param("ssssiii",$plot_no,$floor_no,$road_no,$plot_id,$industrial_estate_id,$user_id,$last_insert_company_id);
       $Resp=$stmt_company_plot->execute();
       $stmt_company_plot->close();
 
@@ -155,7 +149,6 @@ if(isset($_REQUEST['btnsubmit_est']))
   }
   else{
     // Floor Already Exists
-
     $stmt_plot_list = $obj->con1->prepare("SELECT * FROM `tbl_tdrawdata` WHERE id=?");
     $stmt_plot_list->bind_param("i",$plot_rawdata_id);
     $stmt_plot_list->execute();
@@ -186,6 +179,14 @@ if(isset($_REQUEST['btnsubmit_est']))
     $row_data_comp->post_fields->Taluka=$ind_est_result["taluka"];
     $row_data_comp->post_fields->Area=$ind_est_result["area_id"];
     $row_data_comp->post_fields->Factory_Address=$factory_address;
+    $row_data_comp->plot_details = Array(
+            Array(
+              "Plot_No" => $plot_no,
+              "Floor" => $floor_no,
+              "Road_No" => $road_number,
+              "Plot_Status" => "",
+              "Plot_Id" => "1",
+            ));
     $json_object = json_encode($row_data_comp);
 
     // get company details for pr_company_details
@@ -256,7 +257,7 @@ if(isset($_REQUEST['btnsubmit_est']))
   }
 
   //update tbl_tdcompany if not in lead/badlead
-  if($company_status!='lead' && $company_status!='badlead')
+  if($status_company!='Positive' && $status_company!='Negative')
   {
     $stmt_comp_data = $obj->con1->prepare("SELECT * FROM `tbl_tdcompany` WHERE inq_id=?");
     $stmt_comp_data->bind_param("i",$rawdata_id);
@@ -274,7 +275,6 @@ if(isset($_REQUEST['btnsubmit_est']))
     $stmt_tdcompany->bind_param("si",$json_object_comp,$rawdata_id);
     $Resp=$stmt_tdcompany->execute();
     $stmt_tdcompany->close();
-
 
     //tbl_tdapplication
     $stmt_app_data = $obj->con1->prepare("SELECT * FROM `tbl_tdapplication` WHERE inq_id=?");
@@ -316,34 +316,47 @@ if(isset($_REQUEST['btnsubmit_est']))
 }
 
 
-
-
-
 // insert data for select company first
 if(isset($_REQUEST['btnsubmit_comp']))
 {
   $industrial_estate_id = $_REQUEST['industrial_estate_id_comp'];
   $plot_no = $_REQUEST['plot_no_comp'];
-  $road_no = $_REQUEST['road_no_comp'];
-  $floor = $_REQUEST['floor_comp'];
+  $road_no = isset($_REQUEST['road_no_comp'])?$_REQUEST['road_no_comp']:"";
+  $floor_no = $_REQUEST['floor_comp'];
   $rawdata_id = $_REQUEST['rawdata_id_comp'];
-  //$rawdata_id=$_COOKIE['rawdataid_comp_addplot'];;
   $plotting_pattern = $_REQUEST['plotting_pattern_comp'];
   $area_comp=$_REQUEST['area_comp'];
   $factory_address_comp=$_REQUEST['factory_address_comp'];
 
-  $str_arr = explode (",", $floor); 
-  $plot_rawdata_id = $str_arr[0];
-  $floor_no = $str_arr[1];
   $road_number = ($road_no=="")?NULL:$road_no;
   $plot_id='1';
-
  
   $stmt_estate = $obj->con1->prepare("SELECT * FROM tbl_industrial_estate i1 WHERE id=?");
   $stmt_estate->bind_param("i",$industrial_estate_id);
   $stmt_estate->execute();
   $estate_res = $stmt_estate->get_result()->fetch_assoc();
   $stmt_estate->close();
+
+  // get id from tbl_tdrawdata of selected plot_no and floor_no
+  $stmt_plot_search = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE raw_data->'$.plot_details[*].Plot_No' like '%".$plot_no."%' and raw_data->'$.plot_details[*].Road_No' like '%".$road_no."%' and lower(raw_data->'$.post_fields.IndustrialEstate') like '%".strtolower($estate_res['industrial_estate'])."%' and lower(raw_data->'$.post_fields.Area') like '%".strtolower($estate_res['area_id'])."%' and lower(raw_data->'$.post_fields.Taluka') like '%".strtolower($estate_res['taluka'])."%'");
+  $stmt_plot_search->execute();
+  $plot_search = $stmt_plot_search->get_result();
+  $stmt_plot_search->close();
+
+  $plot_rawdata_id = "";
+  if(mysqli_num_rows($plot_search)>0){
+    while($plot_search_result=mysqli_fetch_array($plot_search)){
+      $row_data_plot_search=json_decode($plot_search_result["raw_data"]);
+      if($row_data_plot_search->post_fields->IndustrialEstate==$estate_res['industrial_estate'] && $row_data_plot_search->post_fields->Taluka==$estate_res['taluka'] && $row_data_plot_search->post_fields->Area==$estate_res['area_id']){
+        foreach ($row_data_plot_search->plot_details as $pd) {
+          if($pd->Plot_No==$plot_no && $pd->Floor==$floor_no && $pd->Road_No==$road_no){
+            $plot_rawdata_id=$plot_search_result["id"];
+            break;
+          }
+        }
+      }
+    }
+  }
 
   if($plot_rawdata_id==""){
     // New Floor is Added
@@ -473,7 +486,7 @@ if(isset($_REQUEST['btnsubmit_comp']))
     }
     else if($plotting_pattern=="Road"){
       $stmt_company_plot = $obj->con1->prepare("SELECT pid, company_id FROM `pr_company_plots` WHERE plot_no=? and floor=? and industrial_estate_id=? and road_no=?");
-      $stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$industrial_estate_id,$road_no);
+      $stmt_company_plot->bind_param("siis",$plot_no,$floor_no,$industrial_estate_id,$road_number);
     }
     $stmt_company_plot->execute();
     $pr_company_plot = $stmt_company_plot->get_result()->fetch_assoc();
@@ -516,7 +529,7 @@ if(isset($_REQUEST['btnsubmit_comp']))
   }
 
   //update tbl_tdcompany,tbl_tdapplication if not in lead/badlead
-  if($company_status!='lead' && $company_status!='badlead')
+  if($status_company!='Positive' && $status_company!='Negative')
   {
     //tbl_tdcompany
     $stmt_comp_data = $obj->con1->prepare("SELECT * FROM `tbl_tdcompany` WHERE inq_id=?");
@@ -525,7 +538,7 @@ if(isset($_REQUEST['btnsubmit_comp']))
     $comp_result = $stmt_comp_data->get_result()->fetch_assoc();
     $stmt_comp_data->close();
     $comp_data=json_decode($comp_result["company_data"]);
-    $comp_data->IndustrialEstate=$ind_est_result["industrial_estate"];
+    $comp_data->IndustrialEstate=$estate_res["industrial_estate"];
     $comp_data->Area=$area_comp;
     $comp_data->Company_Address=$factory_address_comp;
     $json_object_comp = json_encode($comp_data);
@@ -543,7 +556,7 @@ if(isset($_REQUEST['btnsubmit_comp']))
     $app_result = $stmt_app_data->get_result()->fetch_assoc();
     $stmt_comp_data->close();
     $app_data=json_decode($comp_result["app_data"]);
-    $app_data->company_details->IndustrialEstate=$ind_est_result["industrial_estate"];
+    $app_data->company_details->IndustrialEstate=$estate_res["industrial_estate"];
     $app_data->company_details->Area=$area_comp;
     $json_object_app = json_encode($app_data);
 
@@ -654,34 +667,17 @@ if(isset($_COOKIE["msg"]) )
   <div class="row">
     <div class="col-xl">
       <div class="card mb-4">
-        <!-- <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"></h5>
-        </div> -->
         <div class="card-body">
           <form method="post" >
            
-            <!-- <div class="mb-3">
-              <label class="form-label" for="select_type">Select Type</label>
-              <div class="form-check form-check-inline mt-3">
-                <input class="form-check-input" type="radio" name="select_type" id="select_estate_first" value="select_estate_first" onchange="changeForm()" <?php /*echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"checked":""*/?>>
-                <label class="form-check-label" for="inlineRadio1">Select Estate First</label>
-              </div>
-              <div class="form-check form-check-inline mt-3">
-                <input class="form-check-input" type="radio" name="select_type" id="select_company_first" value="select_company_first" onchange="changeForm()" <?php /*echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"checked":""*/?>>
-                <label class="form-check-label" for="inlineRadio1">Select Company First</label>
-              </div>
-            </div> -->
-              
             <!-- div for selecting estate first -->
             <div id="select_estate_first_div" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"":"hidden"?>>
               <div class="mb-3">
                 <label class="form-label" for="industrial_estate_id_est">Industrial Estate</label>
-                <!-- <select name="industrial_estate_id_est" id="industrial_estate_id_est" class="form-control" onchange="getCompanyName(this.value)" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?>>
-                    <option value="">Select Industrial Estate</option> -->
-                  <select name="industrial_estate_id_est" id="industrial_estate_id_est" class="form-control"  <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?> onchange="getPlot_companyPlot(this.value)">
+                  <select name="industrial_estate_id_est" id="industrial_estate_id_est" class="form-control"  <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?> onchange="getPlot_companyPlot_est(this.value)">
                     <option value="">Select Industrial Estate</option>
               <?php
-                  $stmt_estate_list = $obj->con1->prepare("SELECT i1.* from (SELECT DISTINCT json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='') tbl1, tbl_industrial_estate i1 where tbl1.taluka=i1.taluka and tbl1.area=i1.area_id and tbl1.ind_estate=i1.industrial_estate order by i1.area_id,i1.taluka,i1.industrial_estate");
+                  $stmt_estate_list = $obj->con1->prepare("SELECT * from tbl_industrial_estate WHERE city_id='SURAT' order by state_id, city_id, taluka, area_id, industrial_estate");
                   $stmt_estate_list->execute();
                   $estate_result = $stmt_estate_list->get_result();
                   $stmt_estate_list->close();
@@ -698,17 +694,9 @@ if(isset($_COOKIE["msg"]) )
               <div class="mb-3">
                 <label class="form-label" for="rawdata_id_est">Company</label>
                 <input type="hidden" name="rawdata_id_est" id="rawdata_id_est" value="<?php echo $rawdataid_est ?>">
-                <!-- <select name="rawdata_id_est" id="rawdata_id_est" onchange="get_companyStatus(this.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?> disabled > -->
                 <select name="est_comp_id" id="est_comp_id" onchange="get_companyStatus(this.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?> disabled >
                     <option value="">Select Company</option>
             <?php
-
-                $stmt_estate = $obj->con1->prepare("SELECT i1.*,a1.plotting_pattern FROM tbl_industrial_estate i1 , pr_add_industrialestate_details a1 where i1.id=a1.industrial_estate_id and i1.id=?");
-                $stmt_estate->bind_param("i",$estateid_est);
-                $stmt_estate->execute();
-                $estate_result = $stmt_estate->get_result();
-                $stmt_estate->close();
-
                 $stmt_firm_list = $obj->con1->prepare("SELECT r1.id, json_unquote(r1.raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(r1.raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(r1.raw_data->'$.post_fields.Mobile_No') as mobile_no from tbl_tdrawdata r1, tbl_industrial_estate i1 where r1.raw_data->'$.post_fields.Taluka'=i1.taluka and r1.raw_data->'$.post_fields.Area'=i1.area_id and r1.raw_data->'$.post_fields.IndustrialEstate'=i1.industrial_estate and JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'!='' and i1.id=?");
                 $stmt_firm_list->bind_param("i",$estateid_est);
                 $stmt_firm_list->execute();
@@ -748,71 +736,8 @@ if(isset($_COOKIE["msg"]) )
               
               
               <div id="company_status_est" class="text-success"></div>
-              
-              
+              <div id="plotting_div_est"></div>
 
-
-          <?php  
-            if(mysqli_num_rows($estate_result)>0){
-                $estate_res = mysqli_fetch_array($estate_result);
-                $plotting_pattern = $estate_res['plotting_pattern'];
-          ?>
-
-              <div id="plotting_div_est">
-                <div class="row">
-                  <div class="mb-3" id="road_list_div_est" <?php echo ($plotting_pattern=="Road")?"":"hidden"?>>
-                    <label class="form-label" for="road_no_est">Road No.</label>
-                    <select name="road_no_est" id="road_no_est" class="form-control" onchange="getRoadPlots_companyPlot(this.value,industrial_estate_id_est.value)">
-                      <option value="">Select Road No.</option>
-            <?php
-                if($plotting_pattern=="Road"){
-                    $stmt_road = $obj->con1->prepare("SELECT DISTINCT(road_no) FROM `pr_estate_roadplot` WHERE industrial_estate_id=? order by abs(road_no)");
-                    $stmt_road->bind_param("i",$estateid_est);
-                    $stmt_road->execute();
-                    $road_res = $stmt_road->get_result();
-                    $stmt_road->close();
-
-                    while($road = mysqli_fetch_array($road_res)){
-            ?>
-                        <option value="<?php echo $road["road_no"] ?>"><?php echo $road["road_no"] ?></option>';    
-            <?php  } } ?>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label" for="plot_no_est">Plot No.</label>
-                  <select name="plot_no_est" id="plot_no_est" onchange="getFloor_companyPlot(this.value,industrial_estate_id_est.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?>>
-                    <option value="">Select Plot No.</option>
-            <?php 
-                if($plotting_pattern=="Series"){
-                    $stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and company_id IS NULL order by abs(plot_no)");
-                    $stmt_plot->bind_param("i",$estateid_est);
-                    $stmt_plot->execute();
-                    $plot_res = $stmt_plot->get_result();
-                    $stmt_plot->close();
-                    while($plot = mysqli_fetch_array($plot_res)){
-            ?>
-                    <!-- <option value="<?php echo $plot_no ?>"><?php echo $plot_no ?></option> -->    
-                    <option value="<?php echo $plot['plot_no'] ?>"><?php echo $plot['plot_no'] ?></option>
-            <?php  } }?>
-                  </select>
-                </div>
-
-                <input type="hidden" class="form-control" name="plotting_pattern_est" id="plotting_pattern_est" value="<?php echo $plotting_pattern ?>" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"required":"" ?> />
-
-                <div class="mb-3">
-                  <label class="form-label" for="floor_est">Floor No.</label>
-                  <select name="floor_est" id="floor_est" class="form-control" <?php echo ($selecttype_est=="select_estate_first")?"required":"" ?>>
-                    <option value="">Select Floor</option>
-                  </select>
-                </div>
-              </div>
-
-
-        <?php } else{ ?>
-                <div id="estate_alert_div_est" class="text-danger">Please Enter Plotting First</div>
-        <?php } ?>
               <button type="submit" name="btnsubmit_est" id="btnsubmit_est" class="btn btn-primary" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"":"disabled" ?>>Save</button>
               <button type="reset" name="btncancel" id="btncancel" class="btn btn-secondary" onclick="window.location.reload()">Cancel</button>
 
@@ -821,25 +746,20 @@ if(isset($_COOKIE["msg"]) )
 
             <!-- div for selecting company first -->
             <div id="select_company_first_div" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"":"hidden"?>>
+             
               <div class="mb-3">
                 <label class="form-label" for="rawdata_id_comp">Company</label>
                 <input type="hidden" name="rawdata_id_comp" value="<?php echo $rawdataid_comp?>">
-                <select name="rawdata_id_comp2" id="rawdata_id_comp2" onchange="get_companyStatus(this.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?> disabled>
-                    <option value="">Select Company</option>
                 <?php 
-                    $stmt_company_list = $obj->con1->prepare("SELECT id, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(raw_data->'$.post_fields.Mobile_No') as mobile_no FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'=''");
+                    $stmt_company_list = $obj->con1->prepare("SELECT id, json_unquote(raw_data->'$.post_fields.IndustrialEstate') as ind_estate, json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.Contact_Name') as contact_name, json_unquote(raw_data->'$.post_fields.Mobile_No') as mobile_no FROM tbl_tdrawdata WHERE id=?");
+                    $stmt_company_list->bind_param("i",$rawdataid_comp);
                     $stmt_company_list->execute();
-                    $company_result = $stmt_company_list->get_result();
+                    $company_result = $stmt_company_list->get_result()->fetch_assoc();
                     $stmt_company_list->close();
-
-                    while($company = mysqli_fetch_array($company_result)){ 
                 ?>
-                    <option value="<?php echo $company['id'] ?>" <?php echo ($rawdataid_comp==$company['id'])?"selected":""?>>
-                        <?php echo $company['firm_name']." ( ".$company['contact_name']." - ".$company['mobile_no']." ) " ?>
-                    </option>
-                <?php } ?>
-                  </select>
+                <input type="text" name="rawdata_id_comp2" id="rawdata_id_comp2" class="form-control" value="<?php echo $company_result['firm_name']." ( ".$company_result['contact_name']." - ".$company_result['mobile_no']." ) " ?>" disabled>
               </div>
+
               <div id="company_status_comp" class="text-success"></div>
               <div class="mb-3">
                 <label class="form-label" for="factory_address_comp">Factory Address</label>
@@ -852,55 +772,94 @@ if(isset($_COOKIE["msg"]) )
 
               <div class="mb-3">
                 <label class="form-label" for="state_comp">State</label>
-                <select name="state_comp" id="state_comp" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
-          <?php while($state_list=mysqli_fetch_array($state_result)){ ?>
-              <option value="<?php echo $state_list["state_id"] ?>" selected><?php echo $state_list["state_id"] ?></option>
+                <select name="state_comp" id="state_comp" class="form-control" onchange="cityList_tbl_indestate(this.value)" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
+                  <option value="">Select State</option>
+          <?php 
+            $stmt_state_list = $obj->con1->prepare("SELECT DISTINCT(state_id) from tbl_industrial_estate");
+            $stmt_state_list->execute();
+            $state_result = $stmt_state_list->get_result();
+            $stmt_state_list->close();
+            while($state_list=mysqli_fetch_array($state_result)){ 
+          ?>
+              <option value="<?php echo $state_list["state_id"] ?>" <?php echo ($state_comp==$state_list["state_id"])?"selected":""?>><?php echo $state_list["state_id"] ?></option>
           <?php } ?>
                 </select>
               </div>
 
               <div class="mb-3">
                 <label class="form-label" for="city_comp">City</label>
-                <select name="city_comp" id="city_comp" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
-          <?php while($city_list=mysqli_fetch_array($city_result)){ ?>
-              <option value="<?php echo $city_list["city_id"] ?>" selected><?php echo $city_list["city_id"] ?></option>
-          <?php } ?>
+                <select name="city_comp" id="city_comp" class="form-control" onchange="talukaList_tbl_indestate(state_comp.value,this.value)" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
+                  <option value="">Select City</option>
+          <?php 
+            if($state_comp!=""){
+              $stmt_city = $obj->con1->prepare("SELECT DISTINCT(city_id) from tbl_industrial_estate where state_id=?");
+              $stmt_city->bind_param("s",$state_comp);
+              $stmt_city->execute();
+              $city_result = $stmt_city->get_result();
+              $stmt_city->close();
+              while($city_list=mysqli_fetch_array($city_result)){ 
+          ?>
+              <option value="<?php echo $city_list["city_id"] ?>" <?php echo ($city_comp==$city_list["city_id"])?"selected":""?>><?php echo $city_list["city_id"] ?></option>
+          <?php } } ?>
                 </select>
               </div>
 
               <div class="mb-3">
                 <label class="form-label" for="taluka_comp">Taluka</label>
-                <!-- <select name="taluka_comp" id="taluka_comp" onchange="areaList_tbl_indestate(this.value,city_comp.value,state_comp.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>> -->
-                <select name="taluka_comp" id="taluka_comp" onchange="estateList_tbl_indestate(this.value,city_comp.value,state_comp.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
+                <select name="taluka_comp" id="taluka_comp" onchange="areaList_tbl_indestate(state_comp.value,city_comp.value,this.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
                   <option value="">Select Taluka</option>
-          <?php while($taluka_list=mysqli_fetch_array($taluka_result)){ ?>
+          <?php 
+            if($state_comp!="" && $city_comp!=""){
+              $stmt_taluka = $obj->con1->prepare("SELECT DISTINCT(taluka) from tbl_industrial_estate where state_id=? and city_id=?");
+              $stmt_taluka->bind_param("ss",$state_comp,$city_comp);
+              $stmt_taluka->execute();
+              $taluka_result = $stmt_taluka->get_result();
+              $stmt_taluka->close();
+              while($taluka_list=mysqli_fetch_array($taluka_result)){ ?>
                 <option value="<?php echo $taluka_list["taluka"] ?>" <?php echo ($taluka_comp==$taluka_list["taluka"])?"selected":""?>>
                     <?php echo $taluka_list["taluka"] ?>
                 </option>
-          <?php } ?>
+          <?php } } ?>
                 </select>
               </div>
               
               <div class="mb-3">
-                <label class="form-label" for="industrial_estate_id_comp">Industrial Estate</label>
-                <!-- <select name="industrial_estate_id_comp" id="industrial_estate_id_comp" class="form-control" onchange="getPlot_companyPlot(this.value)" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>> -->
-                <select name="industrial_estate_id_comp" id="industrial_estate_id_comp" class="form-control" onchange="areaList_tbl_indestate(this.value,city_comp.value,state_comp.value)" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
-                    <option value="">Select Industrial Estate</option>
-            <?php 
-
-                $stmt = $obj->con1->prepare("SELECT e1.id,e1.industrial_estate FROM `assign_estate` a1,tbl_industrial_estate e1 where a1.industrial_estate_id=e1.id and a1.employee_id=?");
-                $stmt->bind_param("i",$_SESSION["id"]);
+                <label class="form-label" for="area_comp">Area</label>
+                <select name="area_comp" id="area_comp" class="form-control" onchange="estateList_tbl_indestate(state_comp.value,city_comp.value,taluka_comp.value,this.value)" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
+                  <option value="">Select Area</option>
+            <?php
+              if($state_comp!="" && $city_comp!="" && $taluka_comp!=""){
+                $stmt = $obj->con1->prepare("SELECT DISTINCT(area_id) from tbl_industrial_estate where state_id=? and city_id=? and taluka=?");
+                $stmt->bind_param("sss",$state_comp,$city_comp,$taluka_comp);
                 $stmt->execute();
                 $res = $stmt->get_result();
                 $stmt->close();
 
-                $html='<option value="">Select Industrial Estate</option>';
+                while($area=mysqli_fetch_array($res))
+                {
+            ?>
+                    <option value="<?php echo $area["area_id"] ?>" <?php echo ($area_comp==$area["area_id"])?"selected":""?>><?php echo $area["area_id"] ?></option>
+            <?php } } ?>
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="industrial_estate_id_comp">Industrial Estate</label>
+                <select name="industrial_estate_id_comp" id="industrial_estate_id_comp" onchange="getPlot_companyPlot_comp(industrial_estate_id_comp.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
+                    <option value="">Select Industrial Estate</option>
+            <?php 
+              if($state_comp!="" && $city_comp!="" && $taluka_comp!="" && $area_comp!=""){
+                $stmt = $obj->con1->prepare("SELECT id,industrial_estate FROM tbl_industrial_estate where state_id=? and city_id=? and taluka=? and area_id=?");
+                $stmt->bind_param("ssss",$state_comp,$city_comp,$taluka_comp,$area_comp);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                $stmt->close();
+
                 while($estate=mysqli_fetch_array($res))
                 {
             ?>
                     <option value="<?php echo $estate["id"] ?>"><?php echo $estate["industrial_estate"] ?></option>
-            <?php } ?>
-
+            <?php } } ?>
                   </select>
               </div>
 
@@ -917,64 +876,12 @@ if(isset($_COOKIE["msg"]) )
                 <input type="text" name="emp_est" class="form-control" value="<?php echo $emp_name ?>" disabled>
               </div>
               
-              <div class="mb-3">
-                <label class="form-label" for="area_comp">Area</label>
-                <!-- <select name="area_comp" id="area_comp" onchange="estateList_tbl_indestate(this.value,taluka_comp.value,city_comp.value,state_comp.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>> -->
-                <select name="area_comp" id="area_comp" onchange="getPlot_companyPlot(industrial_estate_id_comp.value)"  class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
-                  <option value="">Select Area</option>
-            <?php
-
-                $stmt = $obj->con1->prepare("select DISTINCT(area_id) from tbl_industrial_estate where state_id=? and city_id=? and taluka=?");
-                $stmt->bind_param("sss",$state_comp,$city_comp,$taluka_comp);
-                $stmt->execute();
-                $res = $stmt->get_result();
-                $stmt->close();
-
-                $html='<option value="">Select Area</option>';
-                while($area=mysqli_fetch_array($res))
-                {
-            ?>
-                    <option value="<?php echo $area["area_id"] ?>" <?php echo ($area_comp==$area["area_id"])?"selected":""?>><?php echo $area["area_id"] ?></option>
-            <?php } ?>
-                </select>
-              </div>
-
-              
-              <input type="hidden" class="form-control" name="plotting_pattern_comp" id="plotting_pattern_comp" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?> />
-              <div id="estate_alert_div_comp" class="text-danger"></div>
-
-              <div id="plotting_div_comp" hidden>
-                <div class="row">
-                  <div class="mb-3" id="road_list_div_comp" hidden>
-                    <label class="form-label" for="road_no_comp">Road No.</label>
-                    <select name="road_no_comp" id="road_no_comp" class="form-control" onchange="getRoadPlots_companyPlot(this.value,industrial_estate_id_comp.value)">
-                      <option value="">Select Road No.</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label" for="plot_no_comp">Plot No.</label>
-                  <select name="plot_no_comp" id="plot_no_comp" onchange="getFloor_companyPlot(this.value,industrial_estate_id_comp.value)" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
-                    <option value="">Select Plot No.</option>
-                  </select>
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label" for="floor_comp">Floor No.</label>
-                  <select name="floor_comp" id="floor_comp" class="form-control" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"required":"" ?>>
-                    <option value="0">Ground Floor</option>
-                  </select>
-                </div>
-              </div>
-            
+              <div id="plotting_div_comp"></div>
+                          
               <button type="submit" name="btnsubmit_comp" id="btnsubmit_comp" class="btn btn-primary" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"":"disabled" ?>>Save</button>
               <button type="reset" name="btncancel" id="btncancel" class="btn btn-secondary" onclick="window.location.reload()">Cancel</button>
 
             </div>
-
-            
-            
 
           </form>
         </div>
@@ -987,6 +894,17 @@ if(isset($_COOKIE["msg"]) )
 <!-- / Content -->
 <script type="text/javascript">
 
+$( document ).ready(function() {
+  
+  if(readCookie("selecttype_comp_addplot")=="select_estate_first") { 
+    var estate_id = readCookie("estateid_comp_addplot");
+    getPlot_companyPlot_est(estate_id);
+  }
+  /*else if(readCookie("selecttype_comp_addplot")=="select_company_first") { 
+    // suffix = '_comp';
+  }*/
+  
+});
 
 // set factory address
   if (localStorage.getItem("factoryadd_est_addplot") != null) {
@@ -1013,106 +931,33 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
     }
   }
 
-  function getCompanyName(ind_estate_id) {  //no
-    $.ajax({
-      async: false,
-      type: "POST",
-      url: "ajaxdata.php?action=get_company_name",
-      data: "ind_estate_id="+ind_estate_id,
-      cache: false,
-      success: function(result){
-        $('#rawdata_id_est').html('');
-        $('#rawdata_id_est').append(result);
-        getPlot_companyPlot(ind_estate_id);
-      }
-    });
-  }
-
-  function get_companyStatus(company_id)  {  //no
-    /*if($('#select_company_first').is(':checked')) { 
-      suffix = '_comp';
-    }
-    else if($('#select_estate_first').is(':checked')) { 
-      suffix = '_est';
-    }*/
-
-    if(readCookie("selecttype_comp_addplot")=="select_company_first") { 
-      suffix = '_comp';
-    }
-    else if(readCookie("selecttype_comp_addplot")=="select_estate_first") { 
-      suffix = '_est';
-    }
-
-    if(company_id!=""){
-      $.ajax({
-        async: false,
-        type: "POST",
-        url: "ajaxdata.php?action=get_companyStatus",
-        data: "company_id="+company_id,
-        cache: false,
-        success: function(result){
-          $('#company_status'+suffix).html('');
-          $('#company_status'+suffix).append(result);
-        }
-      });
-    }
-    else{
-      $('#company_status'+suffix).html('');
-    }
-  }
-
-  function getPlot_companyPlot(estate_id){
+  function getPlot_companyPlot_est(estate_id){
     if(estate_id!=""){
-      /*if($('#select_company_first').is(':checked')) { 
-        suffix = '_comp';
-      }
-      else if($('#select_estate_first').is(':checked')) { 
-        suffix = '_est';
-      }*/
-      if(readCookie("selecttype_comp_addplot")=="select_company_first") { 
-        suffix = '_comp';
-      }
-      else if(readCookie("selecttype_comp_addplot")=="select_estate_first") { 
-        suffix = '_est';
-      }
       $.ajax({
         async: false,
         type: "POST",
-        url: "ajaxdata.php?action=getPlot_companyPlot",
+        url: "ajaxdata.php?action=getPlot_companyPlot_est",
         data: "estate_id="+estate_id,
         cache: false,
         success: function(result){
-          if(result=='false'){
-            $('#estate_alert_div'+suffix).html('Please Enter Plotting First');
-            document.getElementById('btnsubmit'+suffix).disabled = true;
-            $('#plotting_div'+suffix).attr('hidden',true);
-          }
-          else{
-            $('#estate_alert_div'+suffix).html('');
-            document.getElementById('btnsubmit'+suffix).disabled = false;
-            var data = result.split("@@@@@");
-            plotting_pattern = data[1];
-            $('#plotting_pattern'+suffix).val(plotting_pattern);
-            $('#plotting_div'+suffix).attr('hidden',false);
-            
-            if(plotting_pattern=="Road"){
-              $('#road_list_div'+suffix).removeAttr("hidden");
-              $('#road_no'+suffix).html('');
-              $('#road_no'+suffix).append(data[0]);
-              $('#plot_no'+suffix).html('');
-              $('#plot_no'+suffix).append('<option value="">Select Plot No.</option>');
-              $('#floor'+suffix).html('');
-              $('#floor'+suffix).append('<option value="0">Select Floor No.</option>');
-            } 
-            else if(plotting_pattern=="Series"){
-              $('#road_list_div'+suffix).attr("hidden",true);
-              $('#road_no'+suffix).val("");
-              $('#plot_no'+suffix).html('');
-              $('#plot_no'+suffix).append(data[0]);
-              $('#floor'+suffix).html('');
-              $('#floor'+suffix).append('<option value="">Select Floor No.</option>');
-            }
-          }
+          $('#plotting_div_est').html('');
+          $('#plotting_div_est').html(result);
+        }
+      });
+    }
+  }
+
+  function getPlot_companyPlot_comp(estate_id){
+    if(estate_id!=""){
+      $.ajax({
+        async: false,
+        type: "POST",
+        url: "ajaxdata.php?action=getPlot_companyPlot_comp",
+        data: "estate_id="+estate_id,
+        cache: false,
+        success: function(result){
+          $('#plotting_div_comp').html('');
+          $('#plotting_div_comp').html(result);
         }
       });
     }
@@ -1120,12 +965,6 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
 
   function getRoadPlots_companyPlot(road_no,estate_id){
     if(road_no!=""){
-      /*if($('#select_company_first').is(':checked')) { 
-        suffix = '_comp';
-      }
-      else if($('#select_estate_first').is(':checked')) { 
-        suffix = '_est';
-      }*/
       if(readCookie("selecttype_comp_addplot")=="select_company_first") { 
         suffix = '_comp';
       }
@@ -1155,12 +994,6 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
   function getFloor_companyPlot(plot_no,estate_id){
 
     if(plot_no!=""){
-      /*if($('#select_company_first').is(':checked')) { 
-        suffix = '_comp';
-      }
-      else if($('#select_estate_first').is(':checked')) { 
-        suffix = '_est';
-      }*/
       if(readCookie("selecttype_comp_addplot")=="select_company_first") { 
         suffix = '_comp';
       }
@@ -1168,7 +1001,6 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
         suffix = '_est';
       }
       road_no = $('#road_no'+suffix).val();
-
       $.ajax({
         async: false,
         type: "POST",
@@ -1187,34 +1019,85 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
     }
   }
 
-  function areaList_tbl_indestate(ind_est,city,state){
+  function cityList_tbl_indestate(state){
     $.ajax({
       async: true,
       type: "POST",
-      url: "ajaxdata.php?action=areaList_tbl_indestate",
-      data: "ind_est="+ind_est+"&city="+city+"&state_name="+state,
+      url: "ajaxdata.php?action=cityList_tbl_indestate",
+      data: "state="+state,
       cache: false,
       success: function(result){
+        console.log(result);
+        $('#city_comp').html('');
+        $('#city_comp').append(result);
+        
+        $('#taluka_comp').html('');
+        $('#taluka_comp').html('<option value="">Select Taluka</option>');
         $('#area_comp').html('');
-        $('#area_comp').append(result);
+        $('#area_comp').html('<option value="">Select Area</option>');
+        $('#industrial_estate_id_comp').html('');
+        $('#industrial_estate_id_comp').html('<option value="">Select Industrial Estate</option>');
+        $('#plotting_div_comp').html('');
       }
     });
   }
 
-  function estateList_tbl_indestate(taluka,city,state){
+  function talukaList_tbl_indestate(state,city){
+    $.ajax({
+      async: true,
+      type: "POST",
+      url: "ajaxdata.php?action=talukaList_tbl_indestate",
+      data: "state="+state+"&city="+city,
+      cache: false,
+      success: function(result){
+        console.log(result);
+        $('#taluka_comp').html('');
+        $('#taluka_comp').append(result);
+        
+        $('#area_comp').html('');
+        $('#area_comp').html('<option value="">Select Area</option>');
+        $('#industrial_estate_id_comp').html('');
+        $('#industrial_estate_id_comp').html('<option value="">Select Industrial Estate</option>');
+        $('#plotting_div_comp').html('');
+      }
+    });
+  }
+
+  function areaList_tbl_indestate(state,city,taluka){
+    $.ajax({
+      async: true,
+      type: "POST",
+      url: "ajaxdata.php?action=areaList_tbl_indestate",
+      data: "state="+state+"&city="+city+"&taluka="+taluka,
+      cache: false,
+      success: function(result){
+        console.log(result);
+        $('#area_comp').html('');
+        $('#area_comp').append(result);
+
+        $('#industrial_estate_id_comp').html('');
+        $('#industrial_estate_id_comp').html('<option value="">Select Industrial Estate</option>');
+        $('#plotting_div_comp').html('');
+      }
+    });
+  }
+
+  function estateList_tbl_indestate(state,city,taluka,area){
     $.ajax({
       async: true,
       type: "POST",
       url: "ajaxdata.php?action=estateList_tbl_indestate",
-      data: "taluka="+taluka+"&city="+city+"&state_name="+state,
+      data: "state="+state+"&city="+city+"&taluka="+taluka+"&area="+area,
       cache: false,
       success: function(result){
+        console.log(result);
         $('#industrial_estate_id_comp').html('');
         $('#industrial_estate_id_comp').append(result);
+
+        $('#plotting_div_comp').html('');
       }
     });
   }
-  
 </script>
 <?php 
   include("footer.php");

@@ -75,22 +75,30 @@ if(isset($_COOKIE["msg"]) )
     <!-- grid -->
 
 <!-- Modal -->
-<!-- <div class="modal fade" id="modalCenter" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalCenterTitle">Estate Plotting</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade" id="modalCenter" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalCenterTitle">Fill Data</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          <div class="modal-body" >
+            <div id="modal_form_div"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </form>
       </div>
-      <div id="plotting_modal"></div>
     </div>
   </div>
-</div> -->
 
 <!-- /modal-->
 
 
     <!-- Basic Bootstrap Table -->
+    <?php if(!in_array($user_id, $admin)){ ?>
     <div class="card">
       <h5 class="card-header">Records (Company)</h5>
       <div class="table-responsive text-nowrap">
@@ -109,8 +117,8 @@ if(isset($_COOKIE["msg"]) )
           </thead>
           <tbody class="table-border-bottom-0">
             <?php
-
-              $stmt_list = $obj->con1->prepare("SELECT id, raw_data->>'$.post_fields.state' as state, raw_data->>'$.post_fields.city' as city, raw_data->>'$.post_fields.Taluka' as taluka, raw_data->>'$.post_fields.Area' as area, raw_data->>'$.post_fields.IndustrialEstate' as industrial_estate, raw_data->>'$.post_fields.Firm_Name' as firm_name, raw_data->>'$.post_fields.Factory_Address' as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details)");
+            // SELECT DISTINCT json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details) order by taluka,area
+              $stmt_list = $obj->con1->prepare("SELECT id, raw_data->>'$.post_fields.state' as state, raw_data->>'$.post_fields.city' as city, raw_data->>'$.post_fields.Taluka' as taluka, raw_data->>'$.post_fields.Area' as area, raw_data->>'$.post_fields.IndustrialEstate' as industrial_estate, raw_data->>'$.post_fields.Firm_Name' as firm_name, raw_data->>'$.post_fields.Factory_Address' as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details) limit 50");
               $stmt_list->execute();
               $result = $stmt_list->get_result();
               $stmt_list->close();
@@ -144,7 +152,7 @@ if(isset($_COOKIE["msg"]) )
 
                 }
 
-               if($emp_name==$_SESSION["username"] || $_SESSION['username']=="Bhura SuperAdmin")
+               if($emp_name==$_SESSION["username"])
               {
 
                 
@@ -173,12 +181,91 @@ if(isset($_COOKIE["msg"]) )
         </table>
       </div>
     </div>
+
+  <?php } ?>
+
+  <?php if(in_array($user_id, $admin)){ ?>
+    <div class="card">
+      <h5 class="card-header">Records (Company)</h5>
+      <div class="table-responsive text-nowrap">
+        <table class="table table-hover" id="table_id">
+          <thead>
+            <tr>
+              <th>Srno</th>
+              <th>State</th>
+              <th>City</th>
+              <th>Taluka</th>
+              <th>Area</th>
+              <th>Action</th>  
+            </tr>
+          </thead>
+          <tbody class="table-border-bottom-0">
+            <?php
+              $stmt_list = $obj->con1->prepare("SELECT DISTINCT json_unquote(raw_data->'$.post_fields.state') as state, json_unquote(raw_data->'$.post_fields.city') as city, json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details) order by state,city,taluka,area");
+              $stmt_list->execute();
+              $result = $stmt_list->get_result();
+              $stmt_list->close();
+              $i=1;
+
+              while($data=mysqli_fetch_array($result))
+              {
+                
+            ?>
+
+            <tr>
+              <td><?php echo $i?></td>
+              <td><?php echo $data["state"] ?></td>
+              <td><?php echo $data["city"] ?></td>
+              <td><?php echo $data["taluka"] ?></td>
+              <td><?php echo $data["area"] ?></td>
+              <td>
+                <a href="javascript:viewdata('<?php echo base64_encode($data["state"]) ?>','<?php echo base64_encode($data["city"]) ?>','<?php echo base64_encode($data["taluka"]) ?>','<?php echo base64_encode($data["area"]) ?>','<?php echo $user_id ?>');">View</a>
+              </td>
+            </tr>
+            <?php
+            $i++;
+              }
+            ?>
+            
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  <?php } ?>
     <!--/ Basic Bootstrap Table -->
 
   <!-- / grid -->
 
   <!-- / Content -->
 <script type="text/javascript">
+
+  function viewdata(state,city,taluka,area,user_id) {
+    $('#modalCenter').modal('toggle');
+    $.ajax({
+      async: true,
+      type: "POST",
+      url: "ajaxdata.php?action=company_plot_comp_grid",
+      data: "state="+atob(state)+"&city="+atob(city)+"&taluka="+atob(taluka)+"&area="+atob(area)+"&user_id="+user_id,
+      cache: false,
+      beforeSend: function() {
+        // Show loader before the AJAX call
+        //$('#loader').show();
+        $('#modal_form_div').html('');
+        $('#modal_form_div').html(`
+            <div class="d-flex align-items-center justify-content-center">
+              <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+            </div>
+        `);
+      },
+      success: function(result){
+        console.log(result);
+        $('#modal_form_div').html('');
+        $('#modal_form_div').html(result);
+      }
+    });
+  }
+
   function editdata(rawdata_id,state,city,taluka,area,firm_name,user_id,status,factory_address,emp_name) {
     
     createCookie('state_comp_addplot', atob(state));
