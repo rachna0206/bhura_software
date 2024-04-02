@@ -813,10 +813,17 @@ public function get_badlead_reason($inq_id)
     $stmt_reason = $this->con->prepare("SELECT bad_lead_reason FROM `tbl_tdbadleads` WHERE inq_id=?");
     $stmt_reason->bind_param("i",$inq_id);
     $stmt_reason->execute();
-    $reason_result = $stmt_reason->get_result()->fetch_assoc();
+    $reason_result = $stmt_reason->get_result();
     $stmt_reason->close();
-    $reason = $reason_result['bad_lead_reason'];
-    return $reason;
+    if(mysqli_num_rows($reason_result)>0){
+        $reason_res = $reason_result->fetch_assoc();
+        $reason = $reason_res['bad_lead_reason'];
+        return $reason;
+    }
+    else{
+        return "";
+    }
+    
 }
 
 // insert into pr_company_details and pr_company_plots

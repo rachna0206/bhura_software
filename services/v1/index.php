@@ -3337,7 +3337,7 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
         $json_object = json_encode($row_data);
 
         $filter_samecomp = 'same_company';
-        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter_samecomp);
+        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter_samecomp,$pr_company_detail_id);
       
         // for pr_visit_count table
         // if the data is updated by an employee on different date then count+1
@@ -3745,7 +3745,7 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
         $json_object = json_encode($row_data);
 
         $filter_samecomp = 'same_company';
-        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter_samecomp);
+        $result=$db->update_tbl_tdrawdata($json_object,$user_id,$id,$filter_samecomp, $pr_company_detail_id);
 
         if($result==-1){
             $data['message'] = "An error occurred";
