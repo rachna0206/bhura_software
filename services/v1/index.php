@@ -2425,7 +2425,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                     "source" => $post_fields->source,
                     "Source_Name" => $post_fields->Source_Name,
                     "Remarks" => $post_fields->Remarks,
-                    "Image" => ($res_company_plot['image']=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$res_company_plot['image'],
+                    "Image" => ($res_company_plot['image']=="")?"":"https://internal.bhuraconsultancy.com/bhuraApp/gst_image/".$res_company_plot['image'],
                     "Company_detail_id" => $res_company_plot["company_id"],
                     "Company_plot_id" => $res_company_plot["pid"],
                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
@@ -2512,7 +2512,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                                     "source" => $post_fields->source,
                                     "Source_Name" => $post_fields->Source_Name,
                                     "Remarks" => $post_fields->Remarks,
-                                    "Image" => ($res_company_plot['image']=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$res_company_plot['image'],
+                                    "Image" => ($res_company_plot['image']=="")?"":"https://internal.bhuraconsultancy.com/bhuraApp/gst_image/".$res_company_plot['image'],
                                     "Company_detail_id" => $res_company_plot["company_id"],
                                     "Company_plot_id" => $res_company_plot["pid"],
                                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
@@ -2955,8 +2955,12 @@ $app->post('/insert_company','authenticateUser', function () use ($app) {
         }
 
         if($result>0){
-            $result_visit_count=$db->pr_visit_count($post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id,$result);
-
+            $base_location = $db->getBaseLocation($pr_company_plot_id);
+            if($base_location!="0"){
+                if($db->isWithin10MetersRange($base_location,$location)){
+                    $result_visit_count=$db->pr_visit_count($post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id,$result);
+                }
+            }
             $followup_source = "Auto";
             $followup_date = date("Y-m-d");
             $admin_userid = '1';
@@ -3346,13 +3350,14 @@ $app->post('/add_floor','authenticateUser', function () use ($app) {
             $data['message'] = "An error occurred";
             $data['success'] = false;
         }
-        else{
+        /*else{
             if($result>0){
                 $result_visit_count=$db->pr_visit_count($result_estate['industrial_estate'],$result_estate['area_id'],$result_estate['taluka'],$id,$user_id,$result);
             }
-        }
+        }*/
 
-      $resp_company_plot = $db->company_plot_insert($plot_no,$floor,$road_number,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id);
+        $plot_location = $db->getPlotLocation($pr_company_plot_id);
+        $resp_company_plot = $db->company_plot_insert($plot_no,$floor,$road_number,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id,$plot_location);
     }
     else if($floor_confirmation=='Same Owner But Different Company'){   // Same Owner As Ground But Different Company
       
@@ -3754,7 +3759,7 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
         else{
             if($result>0){
             // for pr_visit_count table
-            $result_visit_count=$db->pr_visit_count($post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id,$result);
+            // $result_visit_count=$db->pr_visit_count($post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id,$result);
 
             // to get blank json data in tbl_tdrawdata and delete it
             if($next_status=='update'){
@@ -3779,12 +3784,14 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
           }
         }
 
+        $plot_location = $db->getPlotLocation($pr_company_plot_id);
+
         // insert or update in pr_company_plot
         if($next_status=='update'){
-            $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id);
+            $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id,$plot_location);
         }
         else{
-            $result_company_plot=$db->company_plot_insert($plot_no,$floor,$road_no,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id);
+            $result_company_plot=$db->company_plot_insert($plot_no,$floor,$road_no,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id,$plot_location);
         }
     }
     else if($plot_confirmation=='Same Owner But Different Company'){   // Same Owner As Ground But Different Company

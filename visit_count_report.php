@@ -133,7 +133,8 @@ if(isset($_COOKIE["msg"]) )
           <tbody class="table-border-bottom-0">
             <?php 
       
-              $stmt_list = $obj->con1->prepare("SELECT cid, industrial_estate, area, taluka, company_id, sum(count) as total_count FROM pr_visit_count group by company_id");
+              // $stmt_list = $obj->con1->prepare("SELECT cid, industrial_estate, area, taluka, company_id, sum(count) as total_count FROM pr_visit_count group by company_id");
+              $stmt_list = $obj->con1->prepare("SELECT c.cid, c.industrial_estate, c.area, c.taluka, c.company_id, SUM(c.count) AS total_count, JSON_UNQUOTE(t.raw_data->'$.post_fields.Firm_Name') AS firm_name, JSON_UNQUOTE(t.raw_data->'$.post_fields.GST_No') AS gst_no FROM pr_visit_count c LEFT JOIN tbl_tdrawdata t ON c.company_id = t.id GROUP BY c.company_id");
               $stmt_list->execute();
               $result = $stmt_list->get_result();
               $stmt_list->close();
@@ -141,11 +142,6 @@ if(isset($_COOKIE["msg"]) )
 
               while($data=mysqli_fetch_array($result))
               {
-                $stmt_company_name = $obj->con1->prepare("SELECT json_unquote(raw_data->'$.post_fields.Firm_Name') as firm_name, json_unquote(raw_data->'$.post_fields.GST_No') as gst_no FROM `tbl_tdrawdata` WHERE id=?");
-                $stmt_company_name->bind_param("i",$data['company_id']);
-                $stmt_company_name->execute();
-                $result_company_name = $stmt_company_name->get_result()->fetch_assoc();
-                $stmt_company_name->close();
 
                 $stmt_employee_list = $obj->con1->prepare("SELECT c1.employee_id, u1.name, c1.count, GROUP_CONCAT(date_format(d1.datetime,'%d-%m-%y')) as visit_dates FROM pr_visit_count c1, pr_visit_dates d1, tbl_users u1 WHERE c1.employee_id=u1.id and d1.visit_count_id=c1.cid and c1.company_id=? group by c1.employee_id");
                 $stmt_employee_list->bind_param("i",$data['company_id']);
@@ -159,8 +155,8 @@ if(isset($_COOKIE["msg"]) )
               <td><?php echo $data["taluka"] ?></td>
               <td><?php echo $data["area"] ?></td>
               <td><?php echo $data["industrial_estate"] ?></td>
-              <td><?php echo $result_company_name["firm_name"] ?></td>
-              <td><?php echo $result_company_name["gst_no"] ?></td>
+              <td><?php echo $data["firm_name"] ?></td>
+              <td><?php echo $data["gst_no"] ?></td>
               <td><?php echo $data["total_count"] ?></td>
               <td>
                 <i class="bx bx-info-circle bx-sm" data-bs-toggle="tooltip" data-bs-offset="0,2" data-bs-placement="top" data-bs-html="true" 

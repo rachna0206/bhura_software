@@ -228,19 +228,19 @@ public function insert_tbl_tdrawdata($json,$user_id)
     return $insert_id;
 }
 
-public function company_plot_insert($plot_no,$floor,$road_no,$plot_id,$industrial_estate_id,$user_id,$plot_status=NULL,$pr_company_detail_id=NULL)
+public function company_plot_insert($plot_no,$floor,$road_no,$plot_id,$industrial_estate_id,$user_id,$plot_status=NULL,$pr_company_detail_id=NULL,$location=NULL)
 {
-    $stmt_company_plot = $this->con->prepare("INSERT INTO `pr_company_plots`(`plot_no`, `floor`, `road_no`, `plot_id`, `industrial_estate_id`, `user_id`,`plot_status`,`company_id`) VALUES (?,?,?,?,?,?,?,?)");
-    $stmt_company_plot->bind_param("ssssiisi",$plot_no,$floor,$road_no,$plot_id,$industrial_estate_id,$user_id,$plot_status,$pr_company_detail_id);
+    $stmt_company_plot = $this->con->prepare("INSERT INTO `pr_company_plots`(`plot_no`, `floor`, `road_no`, `plot_id`, `industrial_estate_id`, `user_id`,`plot_status`,`company_id`, `location`) VALUES (?,?,?,?,?,?,?,?,?)");
+    $stmt_company_plot->bind_param("ssssiisis",$plot_no,$floor,$road_no,$plot_id,$industrial_estate_id,$user_id,$plot_status,$pr_company_detail_id,$location);
     $Resp=$stmt_company_plot->execute();
     $stmt_company_plot->close();
     return $Resp;
 }
 
-public function company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id)
+public function company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id,$location=NULL)
 {
-    $stmt_company_plot = $this->con->prepare("UPDATE `pr_company_plots` SET `plot_status`=?, `plot_id`=?, `company_id`=?, `user_id`=? WHERE `pid`=?");
-    $stmt_company_plot->bind_param("ssiii",$plot_status,$plot_id,$pr_company_detail_id,$user_id,$pr_company_plot_id);
+    $stmt_company_plot = $this->con->prepare("UPDATE `pr_company_plots` SET `plot_status`=?, `plot_id`=?, `company_id`=?, `user_id`=?, `location`=? WHERE `pid`=?");
+    $stmt_company_plot->bind_param("ssiisi",$plot_status,$plot_id,$pr_company_detail_id,$user_id,$location,$pr_company_plot_id);
     $Resp=$stmt_company_plot->execute();
     $stmt_company_plot->close();
     return $Resp;
@@ -742,6 +742,55 @@ public function pr_visit_count($industrial_estate,$area,$taluka,$id,$user_id,$nu
             $stmt_visit_date->close();
         }
     }
+}
+
+function getBaseLocation($pr_company_plot_id){
+    
+    $stmt_list = $this->con->prepare("SELECT location FROM `pr_company_plots` WHERE pid=?");
+    $stmt_list->bind_param("i",$pr_company_plot_id);
+    $stmt_list->execute();
+    $plot_res = $stmt_list->get_result()->fetch_assoc();
+    $stmt_list->close();
+
+    if($plot_res['location']!="" || $plot_res['location']!=NULL){
+        return $plot_res['location'];
+    }
+    else{
+        return "0";
+    }
+}
+
+function getPlotLocation($pr_company_detail_id){
+    
+    $stmt_list = $this->con->prepare("SELECT location FROM `pr_company_plots` WHERE company_id=? LIMIT 1");
+    $stmt_list->bind_param("i",$pr_company_detail_id);
+    $stmt_list->execute();
+    $plot_res = $stmt_list->get_result()->fetch_assoc();
+    $stmt_list->close();
+
+    return $plot_res['location'];
+}
+
+function isWithin10MetersRange($baseLocation, $newLocation) {
+
+    $baseArray = explode(',', $baseLocation);
+    $baseLat = $baseArray[0];
+    $baseLng = $baseArray[1];
+
+    $newArray = explode(',', $newLocation);
+    $newLat = $newArray[0];
+    $newLng = $newArray[1];
+
+    $earthRadius = 6371000; // Earth's radius in meters
+    $deltaLat = deg2rad($newLat - $baseLat);
+    $deltaLng = deg2rad($newLng - $baseLng);
+    $a = sin($deltaLat / 2) * sin($deltaLat / 2) +
+         cos(deg2rad($baseLat)) * cos(deg2rad($newLat)) *
+         sin($deltaLng / 2) * sin($deltaLng / 2);
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+    $distance = $earthRadius * $c;
+    
+    return $distance <= 10;
 }
 
 // check for entry in tbl_tdrawassign

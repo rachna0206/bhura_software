@@ -234,7 +234,7 @@ if(isset($_REQUEST['btnsubmit']))
       }
 
 
-      $stmt_count_list = $obj->con1->prepare("SELECT `cid`, `count`, date(`datetime`) as datetime FROM `pr_visit_count` WHERE industrial_estate=? and area=? and taluka=? and company_id=? and employee_id=?");
+      /*$stmt_count_list = $obj->con1->prepare("SELECT `cid`, `count`, date(`datetime`) as datetime FROM `pr_visit_count` WHERE industrial_estate=? and area=? and taluka=? and company_id=? and employee_id=?");
       $stmt_count_list->bind_param("sssii",$post_fields->IndustrialEstate,$post_fields->Area,$post_fields->Taluka,$id,$user_id);
       $stmt_count_list->execute();
       $count_result = $stmt_count_list->get_result();
@@ -266,7 +266,7 @@ if(isset($_REQUEST['btnsubmit']))
         $stmt_visit_date->bind_param("i",$last_insert_id);
         $Resp=$stmt_visit_date->execute();
         $stmt_visit_date->close();
-      }
+      }*/
 
 
       // for insert into rawassign and followup table 
@@ -458,7 +458,7 @@ if(isset($_REQUEST['btn_modal_insert_floor']))
       $Resp=$stmt->execute();
       $stmt->close();
 
-      // for pr_visit_count table
+      /*// for pr_visit_count table
       // if the data is updated by an employee on different date then count+1
       if(mysqli_affected_rows($obj->con1)>0){
 
@@ -495,7 +495,7 @@ if(isset($_REQUEST['btn_modal_insert_floor']))
           $Resp=$stmt_visit_date->execute();
           $stmt_visit_date->close();
         }
-      }
+      }*/
 
       $plot_id = $last_plot_id+1;
       
@@ -817,7 +817,7 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
       $Resp=$stmt_plot->execute();
       $stmt_plot->close();
 
-      // for pr_visit_count table
+      /*// for pr_visit_count table
       // if the data is updated by an employee on different date then count+1
       if(mysqli_affected_rows($obj->con1)>0){
 
@@ -853,7 +853,7 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
           $stmt_visit_date->bind_param("i",$last_insert_id);
           $Resp=$stmt_visit_date->execute();
           $stmt_visit_date->close();
-        }
+        }*/
 
         // to get blank json data in tbl_tdrawdata and delete it
         if($next_status=='update'){
@@ -2067,7 +2067,6 @@ if(isset($_COOKIE["msg"]) )
       data: "id="+id+"&estate_id="+estate_id+"&area="+area+"&industrial_estate="+industrial_estate+"&plot_no="+plot_no+"&floor_no="+floor_no+"&road_no="+road_no+"&pr_company_detail_id="+pr_company_detail_id,
       cache: false,
       success: function(result){
-        
         $('#addPlot_div').html('');
         $('#addPlot_div').append(result);
       }
