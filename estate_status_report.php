@@ -3,6 +3,61 @@
 
 $user_id = $_SESSION["id"];
 
+
+// update estate status and insert data for assign estate for plotting
+if(isset($_REQUEST['btn_modal_update']))
+{
+  echo "<br/>Estate Id = ".$estate_id = $_REQUEST['industrial_estate_id'];
+  echo "<br/>Verify Status = ".$verify_status = $_REQUEST['verify_status'];
+  echo "<br/>Insert Type = ".$insert_type = $_REQUEST['insert_type'];
+  
+  try
+  {
+    if($verify_status=='Fake' || $verify_status=='Duplicate' || $insert_type=='only_status'){
+      $stmt = $obj->con1->prepare("UPDATE `pr_add_industrialestate_details` SET `status`=? WHERE `industrial_estate_id`=?");
+      $stmt->bind_param("si",$verify_status,$estate_id);
+      $Resp=$stmt->execute();
+      $stmt->close();
+    }
+    else if($insert_type=='assign_estate'){
+      $start_date = $_REQUEST['start_date'];
+      $end_date = $_REQUEST['end_date'];
+      $action = 'estate_plotting';
+      $user_id = $_SESSION["id"];
+
+      $stmt_detail = $obj->con1->prepare("UPDATE `pr_add_industrialestate_details` set `status`=? where `industrial_estate_id`=?");
+      $stmt_detail->bind_param("si",$verify_status,$estate_id);
+      $Resp=$stmt_detail->execute();
+      $stmt_detail->close();
+
+      foreach($_REQUEST['e'] as $emp_id){
+          $stmt = $obj->con1->prepare("INSERT INTO `assign_estate`(`employee_id`, `industrial_estate_id`, `start_dt`, `end_dt`, `user_id`, `action`) VALUES (?,?,?,?,?,?)");
+          $stmt->bind_param("iissis",$emp_id,$estate_id,$start_date,$end_date,$user_id,$action);
+          $Resp=$stmt->execute();
+      }
+    }
+
+    if(!$Resp)
+    {
+      throw new Exception("Problem in adding! ". strtok($obj->con1-> error,  '('));
+    }
+  } 
+  catch(\Exception  $e) {
+    setcookie("sql_error", urlencode($e->getMessage()),time()+3600,"/");
+  }
+
+  if($Resp)
+  {
+    setcookie("msg", "data",time()+3600,"/");
+    header("location:estate_status_report.php");
+  }
+  else
+  {
+    setcookie("msg", "fail",time()+3600,"/");
+    header("location:estate_status_report.php");
+  }
+}
+/*
 // update data
 if(isset($_REQUEST['btn_modal_update']))
 {
@@ -580,7 +635,7 @@ if(isset($_REQUEST['btn_modal_update']))
     header("location:estate_status_report.php");
   }
 }
-
+*/
 ?>
 
 <h4 class="fw-bold py-3 mb-4">Estate Plots Report</h4>
@@ -766,8 +821,15 @@ if(isset($_COOKIE["msg"]) )
 
 <!-- /modal-->
 
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
   <!-- / Content -->
 <script type="text/javascript">
+
+  $(document).ready(function() {
+    $('.js-example-basic-multiple').select2();
+  });
 
   function getOtherOptions(){
     if($('#Verified').is(':checked')){
@@ -781,6 +843,11 @@ if(isset($_COOKIE["msg"]) )
         success: function(result){
           $('#newModal_div').html('');
           $('#newModal_div').append(result);
+
+          $('#emp_list').css("width","100%");
+          $('.js-example-basic-multiple').select2({
+            dropdownParent: $('#modalCenter')
+          });
         }
       });
     }

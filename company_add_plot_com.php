@@ -84,7 +84,8 @@ if(isset($_COOKIE["msg"]) )
         </div>
         <form method="post">
           <div class="modal-body" >
-            <div id="modal_form_div"></div>
+            <div id="modal_form_div">
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
@@ -118,7 +119,7 @@ if(isset($_COOKIE["msg"]) )
           <tbody class="table-border-bottom-0">
             <?php
             // SELECT DISTINCT json_unquote(raw_data->'$.post_fields.Taluka') as taluka, json_unquote(raw_data->'$.post_fields.Area') as area FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details) order by taluka,area
-              $stmt_list = $obj->con1->prepare("SELECT id, raw_data->>'$.post_fields.state' as state, raw_data->>'$.post_fields.city' as city, raw_data->>'$.post_fields.Taluka' as taluka, raw_data->>'$.post_fields.Area' as area, raw_data->>'$.post_fields.IndustrialEstate' as industrial_estate, raw_data->>'$.post_fields.Firm_Name' as firm_name, raw_data->>'$.post_fields.Factory_Address' as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details) limit 50");
+              $stmt_list = $obj->con1->prepare("SELECT id, raw_data->>'$.post_fields.state' as state, raw_data->>'$.post_fields.city' as city, raw_data->>'$.post_fields.Taluka' as taluka, raw_data->>'$.post_fields.Area' as area, raw_data->>'$.post_fields.IndustrialEstate' as industrial_estate, raw_data->>'$.post_fields.Firm_Name' as firm_name, raw_data->>'$.post_fields.Factory_Address' as factory_address FROM tbl_tdrawdata WHERE JSON_CONTAINS_PATH(raw_data, 'one', '$.plot_details') = 0 and raw_data->'$.post_fields.IndustrialEstate'='' and id not in (SELECT rawdata_id from pr_company_details)");
               $stmt_list->execute();
               $result = $stmt_list->get_result();
               $stmt_list->close();
@@ -240,8 +241,17 @@ if(isset($_COOKIE["msg"]) )
   <!-- / Content -->
 <script type="text/javascript">
 
+  /*window.addEventListener('focus', function() {
+    console.log('show');
+
+  }, false);
+  window.addEventListener('blur', function() {
+     console.log('hide');
+  }, false);*/
+
   function viewdata(state,city,taluka,area,user_id) {
     $('#modalCenter').modal('toggle');
+    
     $.ajax({
       async: true,
       type: "POST",
@@ -259,11 +269,12 @@ if(isset($_COOKIE["msg"]) )
         `);
       },
       success: function(result){
-        console.log(result);
         $('#modal_form_div').html('');
         $('#modal_form_div').html(result);
+        $('#table_modal_id').DataTable();
       }
     });
+    
   }
 
   function editdata(rawdata_id,state,city,taluka,area,firm_name,user_id,status,factory_address,emp_name) {
@@ -278,6 +289,8 @@ if(isset($_COOKIE["msg"]) )
     createCookie('selecttype_comp_addplot', 'select_company_first');
    
     localStorage.setItem("factoryadd_comp_addplot",atob(factory_address));
+
+    // createCookie('redirection_pagename', 'company_add_plot_com.php');
     window.open("company_add_plot.php", '_blank');
   }
 </script>

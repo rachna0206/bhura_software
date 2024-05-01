@@ -237,6 +237,7 @@ if(isset($_COOKIE["msg"]) )
       success: function(result){
         $('#modal_form_div').html('');
         $('#modal_form_div').html(result);
+        $('#table_modal_id').DataTable();
       }
     });
   }
@@ -252,6 +253,7 @@ if(isset($_COOKIE["msg"]) )
     createCookie('selecttype_comp_addplot', 'select_estate_first');
     createCookie('empname_comp_addplot', atob(emp_name));
 
+    // createCookie('redirection_pagename', 'company_add_plot_est.php');
     window.open("company_add_plot.php", '_blank');
   }
 

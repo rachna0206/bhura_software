@@ -966,7 +966,7 @@ if(isset($_REQUEST['action']))
 							if($status_res['stage']=="lead"){
 								$status = "Positive";	
 							}
-							else if($status_res['stage']=="badlead"){
+							else if($status_res['stage']=="badlead" || $status_res['stage']=="revisedbadlead"){
 								$status = "Negative";
 							}
 							else{
@@ -1049,7 +1049,7 @@ if(isset($_REQUEST['action']))
 									if($status_res['stage']=="lead"){
 										$status = "Positive";	
 									}
-									else if($status_res['stage']=="badlead"){
+									else if($status_res['stage']=="badlead" || $status_res['stage']=="revisedbadlead"){
 										$status = "Negative";	
 									}
 									else{
@@ -1815,9 +1815,337 @@ if(isset($_REQUEST['action']))
 
 		echo $html;
 	}
-
 	// estate_status_report
-	if($_REQUEST['action']=="getPlotStatus")
+		if($_REQUEST['action']=="getPlotStatus")
+	{	
+		$html="";
+		$estate_id=$_REQUEST['estate_id'];
+
+		// check if plotting is done or not
+		$stmt = $obj->con1->prepare("SELECT plotting_pattern FROM `pr_add_industrialestate_details` WHERE industrial_estate_id=? and plotting_pattern is not null");
+		$stmt->bind_param("i",$estate_id);
+		$stmt->execute();
+		$res = $stmt->get_result();
+		$stmt->close();
+
+		if(mysqli_num_rows($res)>0){
+			// check if estate is assigned or unassigned
+			$stmt_assign = $obj->con1->prepare("SELECT * from assign_estate where industrial_estate_id=? and action='company_entry'");
+			$stmt_assign->bind_param("i",$estate_id);
+			$stmt_assign->execute();
+			$res_assign = $stmt_assign->get_result();
+			$stmt_assign->close();
+
+			if(mysqli_num_rows($res_assign)>0){
+				// assigned -> show details of plot and assigned employees
+				$stmt_assigned_emp_list = $obj->con1->prepare("SELECT a1.start_dt, a1.end_dt, GROUP_CONCAT(u1.name) as emp_names from assign_estate a1, tbl_users u1 where a1.employee_id=u1.id and action='company_entry' and a1.industrial_estate_id=? order by a1.id desc");
+				$stmt_assigned_emp_list->bind_param("i",$estate_id);
+				$stmt_assigned_emp_list->execute();
+				$assigned_emp_result = $stmt_assigned_emp_list->get_result()->fetch_assoc();
+				$stmt_assigned_emp_list->close();
+				$assigned_emp = array();
+
+				$html.='<div class="mb-3" >
+				<label class="form-label" for="basic-default-fullname">Placed in Section -> <strong>Assigned Estate (For Company)</strong></label>
+				</div>
+
+				<div class="mb-3" >
+				<label class="form-label" for="basic-default-fullname">Employees</label>
+				<input type="text" class="form-control" name="emp_list" id="emp_list" value="'.$assigned_emp_result["emp_names"].'" readonly />
+				</div>
+
+				<div class="mb-3">
+				<label class="form-label" for="basic-default-fullname">Start Date</label>
+				<input type="date" class="form-control" name="start_date_modal" id="start_date_modal" max="9999-12-31" value="'.$assigned_emp_result["start_dt"].'" readonly />
+				</div>
+
+				<div class="mb-3">
+				<label class="form-label" for="basic-default-fullname">End Date</label>
+				<input type="date" class="form-control" name="end_date_modal" id="end_date_modal" max="9999-12-31" value="'.$assigned_emp_result["end_dt"].'" readonly />
+				</div>';
+			}
+			else{ 
+				// unassigned -> show details of plot only
+				$html.='<div class="mb-3" >
+				<label class="form-label" for="basic-default-fullname">Placed in Section -> <strong>Unassigned Estate (For Company)</strong></label>
+				</div>';
+			}
+			$stmt_list = $obj->con1->prepare("SELECT i1.state_id, i1.city_id, i1.taluka, i1.area_id, i1.industrial_estate, d1.plotting_pattern, ifnull(d1.status,'-') as status, i1.id as industrial_estate_id from pr_add_industrialestate_details d1, tbl_industrial_estate i1 where d1.industrial_estate_id=i1.id and i1.id=? group by industrial_estate_id");
+			$stmt_list->bind_param("i",$estate_id);
+			$stmt_list->execute();
+			$result = $stmt_list->get_result()->fetch_assoc();
+			$stmt_list->close();
+
+			$stmt_sum = $obj->con1->prepare("SELECT count(plot_no) as total from pr_company_plots where floor='0' and industrial_estate_id=?");
+			$stmt_sum->bind_param("i",$estate_id);
+			$stmt_sum->execute();
+			$result_sum = $stmt_sum->get_result()->fetch_assoc();
+			$stmt_sum->close();
+
+			$stmt_image = $obj->con1->prepare("SELECT image FROM `pr_estate_subimages` WHERE industrial_estate_id=?");
+			$stmt_image->bind_param("i",$estate_id);
+			$stmt_image->execute();
+			$image_result = $stmt_image->get_result();
+			$stmt_image->close();
+
+			if($result["plotting_pattern"]=='Road'){
+				$stmt_plot_list = $obj->con1->prepare("SELECT b.road_no, b.plot, ifnull(a.additional_plot,'-') as additional_plot from (SELECT GROUP_CONCAT(plot_start_no) as additional_plot, road_no FROM `pr_estate_roadplot` WHERE industrial_estate_id=? and plot_end_no is null group by road_no) a right outer join (SELECT concat(plot_start_no,' To ',plot_end_no) as plot, road_no FROM `pr_estate_roadplot` WHERE industrial_estate_id=? and plot_end_no is not null) b on (a.road_no = b.road_no) order by abs(b.road_no)");
+			}
+			else if($result["plotting_pattern"]=='Series'){
+				$stmt_plot_list = $obj->con1->prepare("SELECT b.plot, ifnull(a.additional_plot,'-') as additional_plot from (SELECT GROUP_CONCAT(plot_start_no) as additional_plot FROM `pr_estate_roadplot` WHERE industrial_estate_id=? and plot_end_no is null) a, (SELECT concat(plot_start_no,' To ',plot_end_no) as plot FROM `pr_estate_roadplot` WHERE industrial_estate_id=? and plot_end_no is not null) b");
+			}
+
+			$stmt_plot_list->bind_param("ii",$estate_id,$estate_id);
+			$stmt_plot_list->execute();
+			$plot_result = $stmt_plot_list->get_result();
+			$stmt_plot_list->close();
+
+			$html.='<div class="row">
+			<div class="row">
+			<div class="col mb-3">
+			<input type="hidden" class="form-control" name="insert_type" id="insert_type" value="only_status"/>
+			<label class="form-label" for="basic-default-fullname">State</label>
+			<input type="text" class="form-control" name="state" id="state" value="'.$result["state_id"].'" readonly/>
+			</div>
+
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-company">City</label>
+			<input type="text" class="form-control" name="city" id="city" value="'.$result["city_id"].'" readonly/>
+			</div>
+			</div>
+
+			<div class="row">
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-company">Taluka</label>
+			<input type="text" class="form-control" name="taluka" id="taluka" value="'.$result["taluka"].'" readonly/>
+			</div>
+
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-company">Area</label>
+			<input type="text" class="form-control" name="area" id="area" value="'.$result["area_id"].'" readonly/>
+			</div>
+			</div>
+
+			<div class="row">
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-company">Industrial Estate</label>
+			<input type="text" class="form-control" name="ind_estate" id="ind_estate" value="'.$result["industrial_estate"].'" readonly/>
+			</div>
+			<div class="col mb-3"></div>
+			</div>
+
+			<div class="row">
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-company">Plotting Pattern</label>
+			<input type="text" class="form-control" name="plotting_pattern" id="plotting_pattern" value="'.$result["plotting_pattern"].'" readonly/>
+			</div>
+
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-company">Total Plots</label>
+			<input type="text" class="form-control" name="total_plots" id="total_plots" value="'.$result_sum["total"].'" readonly/>
+			</div>
+			</div>
+
+			<div class="row">
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-company">Status</label>
+			<input type="text" class="form-control" name="status" id="status" value="'.$result["status"].'" readonly/>
+			</div>
+			<div class="col mb-3"></div>
+			</div>
+
+			<div class="mb-3">
+			<div class="card">
+			<div class="card-body">
+			<div class="table-responsive text-nowrap">
+			<table class="table table-bordered">
+			<thead>';
+			if($result["plotting_pattern"]=='Road'){
+				$html.='<tr>
+				<th>Road No.</th>
+				<th>Plots</th>
+				<th>Additional Plots</th>
+				</tr>';
+			}
+			else{ 
+				$html.='<tr>
+				<th>Plots</th>
+				<th>Additional Plots</th>
+				</tr>'; 
+			} 
+			$html.='</thead>
+			<tbody>';
+
+			$old_roadno = "";
+			$new_roadno = "";
+
+			while($plot_list=mysqli_fetch_array($plot_result)){
+				if($result["plotting_pattern"]=='Road'){
+					$new_roadno = $plot_list["road_no"];
+					$html.='<tr>
+					<td>'.$plot_list["road_no"].'</td>
+					<td>'.$plot_list["plot"].'</td>';
+					if($old_roadno==$new_roadno){
+						$html.='<td>-</td>	';
+					}
+					else{
+						$html.='<td>'.$plot_list["additional_plot"].'</td>';	
+					}
+
+					$html.='</tr>';
+					$old_roadno = $new_roadno;
+				}
+				else{
+					$html.='<tr>
+					<td>'.$plot_list["plot"].'</td>
+					<td>'.$plot_list["additional_plot"].'</td>
+					</tr>';
+				}
+			}
+			$html.='</tbody>
+			</table>
+			</div>
+			</div>
+			</div>
+			</div>
+
+			<div class="mb-3">
+			<label class="form-label" for="basic-default-fullname">Image</label>';
+			while($image_list=mysqli_fetch_array($image_result)){  
+				$html.='<img src="industrial_estate_image/'.$image_list["image"].'" name="img" id="img" width="100" height="100" style="display:block;"><br/>';
+			}
+			$html.='</div>'; 
+		}
+		else{
+			// option for assign estate
+			$stmt_emp_list = $obj->con1->prepare("SELECT * FROM tbl_users where (LOWER(role)='assignor/verifier' or LOWER(role)='worker')");
+			$stmt_emp_list->execute();
+			$emp_result = $stmt_emp_list->get_result();
+			$stmt_emp_list->close();
+			
+			$html='<div class="mb-3" >
+				<label class="form-label" for="basic-default-fullname">Assign Estate (For Plotting) :-</label>
+				</div>
+
+			<input type="hidden" class="form-control" name="industrial_estate_id" id="industrial_estate_id" value="'.$estate_id.'"/>
+			<input type="hidden" class="form-control" name="insert_type" id="insert_type" value="assign_estate"/>
+
+			<div class="mb-3" >
+			<label class="form-label" for="basic-default-fullname">Employees</label>
+			<select name="e[]" id="emp_list" class="form-control js-example-basic-multiple" multiple="multiple" required>';
+			while($emp=mysqli_fetch_array($emp_result)){
+				$html.='<option value="'.$emp["id"].'">'.$emp["name"].'</option>';
+			}
+			$html.='</select>
+			</div>
+
+			<div class="mb-3">
+			<label class="form-label" for="basic-default-fullname">Start Date</label>
+			<input type="date" class="form-control" name="start_date" id="start_date" value="'.date("Y-m-d").'" max="9999-12-31" required />
+			</div>
+
+			<div class="mb-3">
+			<label class="form-label" for="basic-default-fullname">End Date</label>
+			<input type="date" class="form-control" name="end_date" id="end_date" max="9999-12-31" required />';
+
+
+			/*
+			// option for plotting
+			$html="plotting pending";
+			$stmt_estate = $obj->con1->prepare("SELECT * FROM tbl_industrial_estate where id=?");
+			$stmt_estate->bind_param("i",$estate_id);
+			$stmt_estate->execute();
+			$estate_result = $stmt_estate->get_result()->fetch_assoc();
+			$stmt_estate->close();
+
+			$html='<input type="hidden" class="form-control" name="ind_estate_id" id="ind_estate_id" value="'.$estate_id.'"/>
+			<input type="hidden" class="form-control" name="insert_type" id="insert_type" value="plotting_and_status"/>
+
+			<div class="row">
+			<div class="col mb-3" >
+			<label class="form-label" for="basic-default-fullname">State : '.$estate_result["state_id"].'</label>
+			<input type="hidden" class="form-control" name="state" id="state" value="'.$estate_result["state_id"].'"/>
+			</div>
+			<div class="col mb-3" >
+			<label class="form-label" for="basic-default-fullname">City : '.$estate_result["city_id"].'</label>
+			<input type="hidden" class="form-control" name="city" id="city" value="'.$estate_result["city_id"].'"/>
+			</div>
+			</div>
+			<div class="row">
+			<div class="col mb-3" >
+			<label class="form-label" for="basic-default-fullname">Taluka : '.$estate_result["taluka"].'</label>
+			<input type="hidden" class="form-control" name="taluka" id="taluka" value="'.$estate_result["taluka"].'"/>
+			</div>
+			<div class="col mb-3" >
+			<label class="form-label" for="basic-default-fullname">Area : '.$estate_result["area_id"].'</label>
+			<input type="hidden" class="form-control" name="area" id="area" value="'.$estate_result["area_id"].'"/>
+			</div>
+			</div>
+			<div class="mb-3" >
+			<label class="form-label" for="basic-default-fullname">Industrial Estate : '.$estate_result["industrial_estate"].'</label>
+			<input type="hidden" class="form-control" name="industrial_estate" id="industrial_estate" value="'.$estate_result["industrial_estate"].'"/>
+			</div>
+
+			<div class="mb-3">
+			<label class="form-label" for="basic-default-fullname">Plotting Pattern</label>
+			<div class="form-check form-check-inline mt-3">
+			<input class="form-check-input" type="radio" name="plotting_pattern" id="series_wise" value="Series" onclick="getplotform()" required>
+			<label class="form-check-label" for="inlineRadio1">Series Wise</label>
+			</div>
+			<div class="form-check form-check-inline mt-3">
+			<input class="form-check-input" type="radio" name="plotting_pattern" id="road_wise" value="Road" onclick="getplotform()" required>
+			<label class="form-check-label" for="inlineRadio1">Road Wise</label>
+			</div>
+			</div>
+
+			<div id="series_div" hidden>
+			<div class="row">
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-fullname">From (Plot No.)</label>
+			<input type="text" class="form-control" pattern="^[0-9]*$" name="from_plotno" id="from_plotno" required />
+			</div>
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-fullname">To (Plot No.)</label>
+			<input type="text" class="form-control" name="to_plotno" id="to_plotno" pattern="^[0-9]*$" required />
+			</div>
+			</div>
+			<a href="javascript:additional_plot_series(this.value)" class="text-right"><i class="bx bxs-add-to-queue bx-sm"></i> Add Additional Plot</a></br></br>
+			<input type="hidden" name="series_plot_cnt" id="series_plot_cnt" value="0"/>
+			<div id="additional_series_plots_div"></div>  
+			</div>
+
+			<div id="road_div" hidden>
+			<div class="row">
+			<div class=" col mb-3">
+			<label class="form-label" for="basic-default-fullname">From (Road No.)</label>
+			<input type="text" class="form-control" pattern="^[0-9]*$" name="from_roadno" id="from_roadno" onblur="get_plot_adding_options()" required />
+			</div>  
+			<div class="col mb-3">
+			<label class="form-label" for="basic-default-fullname">To (Road No.)</label>
+			<input type="text" class="form-control" pattern="^[0-9]*$" name="to_roadno" id="to_roadno" onblur="get_plot_adding_options()" required />
+			</div>
+			<div id="road_alert_div" style="color:red"></div>
+			</div>
+
+			<input type="hidden" name="road_cnt" id="road_cnt" value="1"/>
+			<input type="hidden" name="additional_road_cnt" id="additional_road_cnt" value="0"/>
+			<div id="road_plots_div"></div>
+			</div>
+
+			<div class="mb-3">
+			<label class="form-label" for="basic-default-fullname">Image</label>
+			<input type="file" class="form-control" onchange="readURL(this)" name="img[]" id="img" multiple required />
+			<div id="preview_image_div"></div>
+			<div id="imgdiv" style="color:red"></div>
+			</div>'; */
+		}
+
+		echo $html;
+	}
+
+
+	// estate_status_report (not in use) (to get plotting option if selected verified)
+/*	if($_REQUEST['action']=="getPlotStatus")
 	{	
 		$html="";
 		$estate_id=$_REQUEST['estate_id'];
@@ -2109,7 +2437,7 @@ if(isset($_REQUEST['action']))
 		}
 
 		echo $html;
-	}
+	}*/
 
 	if($_REQUEST["action"]=="estate_locations")
 	{
@@ -2185,6 +2513,8 @@ if(isset($_REQUEST['action']))
 		$estate_result = $stmt_estate->get_result();
 		$stmt_estate->close();
 
+		$submit_status = true;
+
 		if(mysqli_num_rows($estate_result)>0){
             $estate_res = mysqli_fetch_array($estate_result);
             if($estate_res['status']=='Verified'){
@@ -2192,7 +2522,7 @@ if(isset($_REQUEST['action']))
 		$html.='<div class="row">
                   <div class="mb-3" id="road_list_div_est" '.($plotting_pattern=="Road")?"":"hidden".'>
                     <label class="form-label" for="road_no_est">Road No.</label>
-                    <select name="road_no_est" id="road_no_est" class="form-control" onchange="getRoadPlots_companyPlot(this.value,industrial_estate_id_est.value)">
+                    <select name="road_no_est" id="road_no_est" class="form-control" onchange="getRoadPlots_companyPlot(this.value,industrial_estate_id_est.value)" required>
                       <option value="">Select Road No.</option>';
             
             if($plotting_pattern=="Road"){
@@ -2211,7 +2541,7 @@ if(isset($_REQUEST['action']))
 
                 <div class="mb-3">
                   <label class="form-label" for="plot_no_est">Plot No.</label>
-                  <select name="plot_no_est" id="plot_no_est" onchange="getFloor_companyPlot(this.value,industrial_estate_id_est.value)" class="form-control">
+                  <select name="plot_no_est" id="plot_no_est" onchange="getFloor_companyPlot(this.value,industrial_estate_id_est.value)" class="form-control" required>
                     <option value="">Select Plot No.</option>';
                 if($plotting_pattern=="Series"){
                     /*$stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and company_id IS NULL order by abs(plot_no)");*/
@@ -2230,19 +2560,21 @@ if(isset($_REQUEST['action']))
 
                 <div class="mb-3">
                   <label class="form-label" for="floor_est">Floor No.</label>
-                  <select name="floor_est" id="floor_est" class="form-control">
+                  <select name="floor_est" id="floor_est" class="form-control" required>
                     <option value="">Select Floor</option>
                   </select>
                 </div>';
 
 
         } else{
+        	$submit_status = false;
                 $html.='<div id="estate_alert_div_est" class="text-danger">Industrial Estate is '.$estate_res["status"].'</div><br/>';
         } } else{
+        	$submit_status = false;
                 $html.='<div id="estate_alert_div_est" class="text-danger">Please Enter Plotting First</div><br/>';
         }
 
-        echo $html;
+        echo $html."@@@@@".$submit_status;
 	}
 
 	// company_add_plot
@@ -2250,6 +2582,8 @@ if(isset($_REQUEST['action']))
 	{	
 		$html="";
 		$estate_id=$_REQUEST['estate_id'];
+
+		$submit_status = true;
 
 		$stmt_estate = $obj->con1->prepare("SELECT a1.plotting_pattern, a1.status FROM pr_add_industrialestate_details a1 where a1.industrial_estate_id=?");
 		$stmt_estate->bind_param("i",$estate_id);
@@ -2264,7 +2598,7 @@ if(isset($_REQUEST['action']))
 		$html.='<div class="row">
                   <div class="mb-3" id="road_list_div_comp" '.($plotting_pattern=="Road")?"":"hidden".'>
                     <label class="form-label" for="road_no_comp">Road No.</label>
-                    <select name="road_no_comp" id="road_no_comp" class="form-control" onchange="getRoadPlots_companyPlot(this.value,industrial_estate_id_comp.value)">
+                    <select name="road_no_comp" id="road_no_comp" class="form-control" onchange="getRoadPlots_companyPlot(this.value,industrial_estate_id_comp.value)" required>
                       <option value="">Select Road No.</option>';
             
             if($plotting_pattern=="Road"){
@@ -2283,7 +2617,7 @@ if(isset($_REQUEST['action']))
 
                 <div class="mb-3">
                   <label class="form-label" for="plot_no_comp">Plot No.</label>
-                  <select name="plot_no_comp" id="plot_no_comp" onchange="getFloor_companyPlot(this.value,industrial_estate_id_comp.value)" class="form-control">
+                  <select name="plot_no_comp" id="plot_no_comp" onchange="getFloor_companyPlot(this.value,industrial_estate_id_comp.value)" class="form-control" required>
                     <option value="">Select Plot No.</option>';
                 if($plotting_pattern=="Series"){
                     $stmt_plot = $obj->con1->prepare("SELECT DISTINCT(plot_no) FROM `pr_company_plots` WHERE industrial_estate_id=? and company_id IS NULL order by abs(plot_no)");
@@ -2301,19 +2635,21 @@ if(isset($_REQUEST['action']))
 
                 <div class="mb-3">
                   <label class="form-label" for="floor_comp">Floor No.</label>
-                  <select name="floor_comp" id="floor_comp" class="form-control">
+                  <select name="floor_comp" id="floor_comp" class="form-control" required>
                     <option value="">Select Floor</option>
                   </select>
                 </div>';
 
 
         } else{
+        	$submit_status=false;
                 $html.='<div id="estate_alert_div_comp" class="text-danger">Industrial Estate is '.$estate_res["status"].'</div><br/>';
         } } else{
+        	$submit_status=false;
                 $html.='<div id="estate_alert_div_comp" class="text-danger">Please Enter Plotting First</div><br/>';
         }
 
-        echo $html;
+        echo $html."@@@@@".$submit_status;
 	}
 
 	// company_add_plot
@@ -2497,7 +2833,7 @@ if(isset($_REQUEST['action']))
 			<div class="card">
       			<h5 class="card-header">Records</h5>
       			<div class="table-responsive text-nowrap">
-        			<table class="table table-hover" id="table_id">
+        			<table class="table table-hover" id="table_modal_id">
 			          <thead>
 			            <tr>
 			              <th>Srno</th>
@@ -2575,7 +2911,7 @@ if(isset($_REQUEST['action']))
             <div class="card">
       			<h5 class="card-header">Records</h5>
       			<div class="table-responsive text-nowrap">
-        			<table class="table table-hover" id="table_id">
+        			<table class="table" id="table_modal_id">
 			          <thead>
 			            <tr>
 			              <th>Srno</th>

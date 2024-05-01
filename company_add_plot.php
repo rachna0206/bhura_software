@@ -17,7 +17,7 @@
         $city_comp = $_COOKIE['city_comp_addplot'];
         $taluka_comp = $_COOKIE['taluka_comp_addplot'];
         $area_comp = $_COOKIE['area_comp_addplot'];
-        $rawdataid_comp = $_COOKIE['rawdataid_comp_addplot'];
+        echo $rawdataid_comp = $_COOKIE['rawdataid_comp_addplot'];
         $status_company = $_COOKIE['company_status'];
         $emp_name = $_COOKIE['empname_comp_addplot'];
     }
@@ -281,7 +281,7 @@ if(isset($_REQUEST['btnsubmit_est']))
     $stmt_app_data->bind_param("i",$rawdata_id);
     $stmt_app_data->execute();
     $app_result = $stmt_app_data->get_result()->fetch_assoc();
-    $stmt_comp_data->close();
+    $stmt_app_data->close();
     $app_data=json_decode($comp_result["app_data"]);
     $app_data->company_details->IndustrialEstate=$ind_est_result["industrial_estate"];
     $app_data->company_details->Area=$area_comp;
@@ -306,12 +306,12 @@ if(isset($_REQUEST['btnsubmit_est']))
     }
 
     setcookie("msg", "data",time()+3600,"/");
-    header("location:company_add_plot_est.php");
+    header("location:company_add_plot.php");
   }
   else
   {
     setcookie("msg", "fail",time()+3600,"/");
-    header("location:company_add_plot_est.php");
+    header("location:company_add_plot.php");
   }
 }
 
@@ -739,7 +739,8 @@ if(isset($_COOKIE["msg"]) )
               <div id="plotting_div_est"></div>
 
               <button type="submit" name="btnsubmit_est" id="btnsubmit_est" class="btn btn-primary" <?php echo (isset($selecttype_est) && $selecttype_est=="select_estate_first")?"":"disabled" ?>>Save</button>
-              <button type="reset" name="btncancel" id="btncancel" class="btn btn-secondary" onclick="window.location.reload()">Cancel</button>
+              <!-- <button type="reset" name="btncancel" id="btncancel" class="btn btn-secondary" onclick="window.location.reload()">Cancel</button> -->
+              <button name="btncancel" id="btncancel" class="btn btn-secondary" onclick="closeNewTabAndReturn()">Cancel</button>
 
             </div>
 
@@ -880,7 +881,7 @@ if(isset($_COOKIE["msg"]) )
                           
               <button type="submit" name="btnsubmit_comp" id="btnsubmit_comp" class="btn btn-primary" <?php echo (isset($selecttype_est) && $selecttype_est=="select_company_first")?"":"disabled" ?>>Save</button>
               <button type="reset" name="btncancel" id="btncancel" class="btn btn-secondary" onclick="window.location.reload()">Cancel</button>
-
+              
             </div>
 
           </form>
@@ -893,6 +894,16 @@ if(isset($_COOKIE["msg"]) )
 
 <!-- / Content -->
 <script type="text/javascript">
+
+function closeNewTabAndReturn() {
+  // page_name = readCookie("redirection_pagename")
+  // Close the new tab
+  window.close();
+  // Focus back to the opener window (the previous tab)
+  window.opener.focus();
+  // Reload the opener window
+  // window.location.href = page_name;
+}
 
 $( document ).ready(function() {
   
@@ -940,8 +951,14 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
         data: "estate_id="+estate_id,
         cache: false,
         success: function(result){
+          var data = result.split("@@@@@");
           $('#plotting_div_est').html('');
-          $('#plotting_div_est').html(result);
+          $('#plotting_div_est').html(data[0]);
+          if(data[1]==true){
+            document.getElementById('btnsubmit_est').disabled = false;
+          }else{
+            document.getElementById('btnsubmit_est').disabled = true;
+          }
         }
       });
     }
@@ -956,8 +973,15 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
         data: "estate_id="+estate_id,
         cache: false,
         success: function(result){
+          console.log(result);
+          var data = result.split("@@@@@");
           $('#plotting_div_comp').html('');
-          $('#plotting_div_comp').html(result);
+          $('#plotting_div_comp').html(data[0]);
+          if(data[1]==true){
+            document.getElementById('btnsubmit_comp').disabled = false;
+          }else{
+            document.getElementById('btnsubmit_comp').disabled = true;
+          }
         }
       });
     }
@@ -1027,7 +1051,6 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
       data: "state="+state,
       cache: false,
       success: function(result){
-        console.log(result);
         $('#city_comp').html('');
         $('#city_comp').append(result);
         
@@ -1050,7 +1073,6 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
       data: "state="+state+"&city="+city,
       cache: false,
       success: function(result){
-        console.log(result);
         $('#taluka_comp').html('');
         $('#taluka_comp').append(result);
         
@@ -1071,7 +1093,6 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
       data: "state="+state+"&city="+city+"&taluka="+taluka,
       cache: false,
       success: function(result){
-        console.log(result);
         $('#area_comp').html('');
         $('#area_comp').append(result);
 
@@ -1090,7 +1111,6 @@ if (localStorage.getItem("factoryadd_comp_addplot") != null) {
       data: "state="+state+"&city="+city+"&taluka="+taluka+"&area="+area,
       cache: false,
       success: function(result){
-        console.log(result);
         $('#industrial_estate_id_comp').html('');
         $('#industrial_estate_id_comp').append(result);
 

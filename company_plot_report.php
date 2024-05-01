@@ -21,10 +21,10 @@ $estate_result = $stmt_ind_estate_name->get_result()->fetch_assoc();
 $stmt_ind_estate_name->close();
 
 if(isset($_COOKIE['report_estate_id'])){
-  $stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id WHERE p1.industrial_estate_id='".$_COOKIE['report_estate_id']."' ORDER BY p1.industrial_estate_id, c1.rawdata_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
+  $stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id WHERE p1.industrial_estate_id='".$_COOKIE['report_estate_id']."' ORDER BY p1.industrial_estate_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
 }
 else{
-  $stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id ORDER BY p1.industrial_estate_id, c1.rawdata_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
+  $stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id ORDER BY p1.industrial_estate_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
 }
 $stmt_list->execute();
 $result = $stmt_list->get_result();
@@ -54,7 +54,7 @@ if(isset($_REQUEST['btnsubmit']))
   
   /*echo "SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id WHERE 1 ".$firm_name_str.$gst_no_str.$status_str.$plot_status_str.$ind_estate_str.$contact_person_str.$contact_number_str." ORDER BY p1.industrial_estate_id, abs(p1.plot_no)";*/
 
-  $stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id WHERE 1 ".$firm_name_str.$gst_no_str.$status_str.$plot_status_str.$ind_estate_str.$contact_person_str.$contact_number_str." ORDER BY p1.industrial_estate_id, c1.rawdata_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
+  $stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id WHERE 1 ".$firm_name_str.$gst_no_str.$status_str.$plot_status_str.$ind_estate_str.$contact_person_str.$contact_number_str." ORDER BY p1.industrial_estate_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
   $stmt_list->execute();
   $result = $stmt_list->get_result();
   
@@ -200,33 +200,39 @@ if(isset($_REQUEST['btnsubmit']))
               $i=1;
               $c=0;
 
-              $colour_array = array('default','secondary','success','danger','warning','info','dark');
+              $colour_array = array('secondary','success','danger','warning','info','dark');
               while($data=mysqli_fetch_array($result))
               {
                 /*$row_data=json_decode($data["raw_data"]);
                 $post_fields=$row_data->post_fields;*/
               
-                if($i==1){
-                  // $old_name=$post_fields->Firm_Name;
-                  $old_name=$data['rawdata_id'];
-                  $table_colour = $colour_array[$c];
-                  $c++;
-                  if($c==count($colour_array)){
-                    $c=0;
-                  }
+                if($data['rawdata_id']==0 || $data['rawdata_id']==null){
+                    $table_colour = 'default';
                 }
                 else{
-                  // $new_name=$post_fields->Firm_Name;
-                  $new_name=$data['rawdata_id'];
-                  if($new_name!=$old_name){
-                    $old_name=$new_name;
+                  if($i==1){
+                   // $old_name=$post_fields->Firm_Name;
+                    $old_name=$data['rawdata_id'];
                     $table_colour = $colour_array[$c];
                     $c++;
                     if($c==count($colour_array)){
                       $c=0;
                     }
-                  }else{}
+                  }
+                  else{
+                    // $new_name=$post_fields->Firm_Name;
+                    $new_name=$data['rawdata_id'];
+                    if($new_name!=$old_name){
+                      $old_name=$new_name;
+                      $table_colour = $colour_array[$c];
+                      $c++;
+                      if($c==count($colour_array)){
+                        $c=0;
+                      }
+                    }
+                  }  
                 }
+                
             ?>
             <tr class="table-<?php echo $table_colour?>">
               <td><?php echo $i ?></td>

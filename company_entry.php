@@ -899,7 +899,7 @@ if(isset($_REQUEST['btn_modal_insert_plot']))
         $stmt_company_plot->close();
       }
         
-    }
+    
     else if($plot_confirmation=='same_owner'){   // Same Owner As Ground But Different Company
 
       // to get Contact_Name and Mobile_No from existing company

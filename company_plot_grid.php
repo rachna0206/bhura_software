@@ -65,7 +65,7 @@
     <link rel="stylesheet" href="assets/vendor/libs/apex-charts/apex-charts.css" />
 
     <!-- data tables -->
-    <link rel="stylesheet" type="text/css" href="assets/vendor/DataTables/datatables.css">
+    <!-- <link rel="stylesheet" type="text/css" href="assets/vendor/DataTables/datatables.css"> -->
 
     <!-- Helpers -->
     <script src="assets/vendor/js/helpers.js"></script>
@@ -225,7 +225,7 @@ $contact_person_str=($contact_person!="")?" and lower(r1.raw_data->'$.post_field
 $contact_number_str=($contact_number!="")?" and lower(r1.raw_data->'$.post_fields.Mobile_No') like '%".strtolower($contact_number)."%'":"";
 
 // $stmt_list = $obj->con1->prepare("SELECT * FROM tbl_tdrawdata WHERE 1 ".$firm_name_str.$gst_no_str.$area_str.$status_str.$plot_status_str.$ind_estate_str." order by id desc");
-$stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id WHERE 1 ".$firm_name_str.$gst_no_str.$status_str.$plot_status_str.$ind_estate_str." ORDER BY p1.industrial_estate_id, c1.rawdata_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
+$stmt_list = $obj->con1->prepare("SELECT p1.pid, c1.rawdata_id, r1.raw_data->>'$.post_fields.Firm_Name' as firm_name, r1.raw_data->>'$.post_fields.GST_No' as gst_no, i1.area_id, i1.city_id, i1.industrial_estate, p1.plot_no, p1.floor, p1.road_no, p1.plot_status, r1.raw_data->>'$.post_fields.Contact_Name' as contact_person, r1.raw_data->>'$.post_fields.Mobile_No' as contact_number, c1.status, c1.constitution, r1.raw_data->>'$.post_fields.Remarks' as remark, r1.raw_data->>'$.post_fields.Segment' as segment FROM `pr_company_plots` p1 JOIN `tbl_industrial_estate` i1 ON p1.industrial_estate_id=i1.id LEFT JOIN `pr_company_details` c1 ON p1.company_id=c1.cid LEFT JOIN `tbl_tdrawdata` r1 ON c1.rawdata_id=r1.id WHERE 1 ".$firm_name_str.$gst_no_str.$status_str.$plot_status_str.$ind_estate_str." ORDER BY p1.industrial_estate_id, abs(p1.road_no), abs(p1.plot_no), p1.floor");
 $stmt_list->execute();
 $result = $stmt_list->get_result();
 $stmt_list->close();
@@ -269,7 +269,7 @@ $stmt_ind_estate_name->close();
   <div class="card">
    
     <div class="table-responsive text-nowrap">
-      <table class="table" id="table_id">
+      <table class="table" id="dragdrop_id">
         <thead>
           <tr>
               <th>Srno</th>
@@ -294,33 +294,39 @@ $stmt_ind_estate_name->close();
             $i=1;
             $c=0;
 
-            $colour_array = array('default','secondary','success','danger','warning','info','dark');
+            $colour_array = array('secondary','success','danger','warning','info','dark');
             while($data=mysqli_fetch_array($result))
             {
               /*$row_data=json_decode($data["raw_data"]);
               $post_fields=$row_data->post_fields;*/
             
-              if($i==1){
-                // $old_name=$post_fields->Firm_Name;
-                $old_name=$data['rawdata_id'];
-                $table_colour = $colour_array[$c];
-                $c++;
-                if($c==count($colour_array)){
-                    $c=0;
-                  }
-              }
-              else{
-                // $new_name=$post_fields->Firm_Name;
-                $new_name=$data['rawdata_id'];
-                if($new_name!=$old_name){
-                  $old_name=$new_name;
-                  $table_colour = $colour_array[$c];
-                  $c++;
-                  if($c==count($colour_array)){
-                    $c=0;
-                  }
-                }else{}
-              }
+                if($data['rawdata_id']==0 || $data['rawdata_id']==null){
+                    $table_colour = 'default';
+                }
+                else{
+                    if($i==1){
+                        // $old_name=$post_fields->Firm_Name;
+                        $old_name=$data['rawdata_id'];
+                        $table_colour = $colour_array[$c];
+                        $c++;
+                        if($c==count($colour_array)){
+                            $c=0;
+                        }
+                    }
+                    else{
+                        // $new_name=$post_fields->Firm_Name;
+                        $new_name=$data['rawdata_id'];
+                        if($new_name!=$old_name){
+                            $old_name=$new_name;
+                            $table_colour = $colour_array[$c];
+                            $c++;
+                            if($c==count($colour_array)){
+                                $c=0;
+                            }
+                        }
+                    }      
+                }
+              
           ?>
 
           <tr class="table-<?php echo $table_colour?>">
@@ -358,11 +364,11 @@ $stmt_ind_estate_name->close();
         </div>
 
         <script>
-		$(document).ready( function () {
-			$('#table_id').DataTable();     
-		} );
+		/*$(document).ready( function () {
+			$('#dragdrop_id').DataTable();     
+		} );*/
             document.addEventListener('DOMContentLoaded', function () {
-                const table = document.getElementById('table_id');
+                const table = document.getElementById('dragdrop_id');
 
                 let draggingEle_col;
                 let draggingColumnIndex_col;
@@ -842,11 +848,6 @@ $stmt_ind_estate_name->close();
 
 
 
-
-
-
-
-
                 table.querySelectorAll('th').forEach(function (headerCell) {
                     headerCell.classList.add('draggable_col');
                     headerCell.addEventListener('mousedown', mouseDownHandler_col);
@@ -891,7 +892,7 @@ $stmt_ind_estate_name->close();
     <script src="assets/js/dashboards-analytics.js"></script>
 
     <!-- data tables-->
-    <script type="text/javascript" charset="utf8" src="assets/vendor/DataTables/datatables.js"></script>
+    <!-- <script type="text/javascript" charset="utf8" src="assets/vendor/DataTables/datatables.js"></script> -->
 
     <!-- Place this tag in your head or just before your close body tag. -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
