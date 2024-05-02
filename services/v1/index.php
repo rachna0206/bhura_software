@@ -13,7 +13,7 @@ date_default_timezone_set("Asia/Kolkata");
 $app = new \Slim\Slim();
 
 
-/* *
+/*
  * user login
  * Parameters: userid, password
  * Method: POST
@@ -2390,7 +2390,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                     if($status_res['stage']=="lead"){
                         $status = "Positive";   
                     }
-                    else if($status_res['stage']=="badlead"){
+                    else if($status_res['stage']=="badlead" || $status_res['stage']=="revisedbadlead"){
                         $status = "Negative";
                     }
                     else{
@@ -2425,7 +2425,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                     "source" => $post_fields->source,
                     "Source_Name" => $post_fields->Source_Name,
                     "Remarks" => $post_fields->Remarks,
-                    "Image" => ($res_company_plot['image']=="")?"":"https://internal.bhuraconsultancy.com/bhuraApp/gst_image/".$res_company_plot['image'],
+                    "Image" => ($res_company_plot['image']=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$res_company_plot['image'],
                     "Company_detail_id" => $res_company_plot["company_id"],
                     "Company_plot_id" => $res_company_plot["pid"],
                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
@@ -2477,7 +2477,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                                     if($status_res['stage']=="lead"){
                                         $status = "Positive";   
                                     }
-                                    else if($status_res['stage']=="badlead"){
+                                    else if($status_res['stage']=="badlead" || $status_res['stage']=="revisedbadlead"){
                                         $status = "Negative";   
                                     }
                                     else{
@@ -2512,7 +2512,7 @@ $app->post('/get_company_details','authenticateUser', function () use ($app) {
                                     "source" => $post_fields->source,
                                     "Source_Name" => $post_fields->Source_Name,
                                     "Remarks" => $post_fields->Remarks,
-                                    "Image" => ($res_company_plot['image']=="")?"":"https://internal.bhuraconsultancy.com/bhuraApp/gst_image/".$res_company_plot['image'],
+                                    "Image" => ($res_company_plot['image']=="")?"":"https://software.bhuraconsultancy.com/gst_image/".$res_company_plot['image'],
                                     "Company_detail_id" => $res_company_plot["company_id"],
                                     "Company_plot_id" => $res_company_plot["pid"],
                                     "Loan_Sanction" => isset($post_fields->loan_applied)?$post_fields->loan_applied:"",
@@ -3687,6 +3687,7 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
     $id=$data_request->id;
     $pr_company_detail_id=$data_request->company_detail_id;
     $user_id=$data_request->user_id;
+    $location=isset($data_request->location)?$data_request->location:NULL;
   
     $db = new DbOperation();
     $data = array();
@@ -3784,14 +3785,14 @@ $app->post('/add_plot','authenticateUser', function () use ($app) {
           }
         }
 
-        $plot_location = $db->getPlotLocation($pr_company_plot_id);
+        // $plot_location = $db->getPlotLocation($pr_company_plot_id);
 
         // insert or update in pr_company_plot
         if($next_status=='update'){
-            $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id,$plot_location);
+            $result_company_plot=$db->company_plot_update($plot_status,$plot_id,$pr_company_detail_id,$pr_company_plot_id,$user_id,$location);
         }
         else{
-            $result_company_plot=$db->company_plot_insert($plot_no,$floor,$road_no,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id,$plot_location);
+            $result_company_plot=$db->company_plot_insert($plot_no,$floor,$road_no,$plot_id,$estate_id,$user_id,$plot_status,$pr_company_detail_id,$location);
         }
     }
     else if($plot_confirmation=='Same Owner But Different Company'){   // Same Owner As Ground But Different Company
@@ -4435,6 +4436,56 @@ $app->post('/assign_lead','authenticateUser', function () use ($app) {
     echoResponse(200, $data);
 });
 
+/*
+ * assign multiple lead to user (check user ids and data)
+ * Parameters: {"loggedin_user":"1","selected_user":"31","inq_id":[1,2,3]}
+ * Method: POST
+ * 
+ */
+$app->post('/assign_multiple_lead','authenticateUser', function () use ($app) {
+    
+    verifyRequiredParams(array('data'));
+    $data_request = json_decode($app->request->post('data'));
+    $loggedin_user_id=$data_request->loggedin_user;
+    $selected_user_id=$data_request->selected_user;
+    $inq_ids=$data_request->inq_ids;
+    
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+
+    $res_logged_username=$db->get_username($loggedin_user_id);
+    $res_selected_username=$db->get_username($selected_user_id);
+
+    $raw_assign_status = "lead";
+    $followup_text = "<p>".$res_logged_username['name']." has forwarded to ".$res_selected_username['name'].".</p>";
+    $followup_source = "Auto";
+
+    $followup_date = date("Y-m-d");
+
+    $inq_ids_cnt = count($inq_ids);
+
+    for($i=0;$i<$inq_ids_cnt;$i++){
+        $result_rawassign = $db->insert_rawassign($inq_ids[$i],$selected_user_id,$raw_assign_status);
+
+        $result_followup = $db->insert_followup($loggedin_user_id,$inq_ids[$i],$followup_text,$followup_source,$followup_date);
+    }
+
+    if($result_followup>0)
+    {
+        $data['message'] = "Data added successfully";
+        $data['success'] = true;
+    }
+    else
+    {
+        $data['data'] = "";
+        $data['message'] = "An error occurred";
+        $data['success'] = false;
+    }
+
+    echoResponse(200, $data);
+});
+
 // lead company list
 $app->post('/lead_list','authenticateUser', function () use ($app) {
     verifyRequiredParams(array('data'));
@@ -4608,6 +4659,7 @@ $app->post('/remaining_lead_list','authenticateUser', function () use ($app) {
     echoResponse(200, $data);
 });
 
+
 // overdue section lead company list
 $app->post('/overdue_lead_list','authenticateUser', function () use ($app) {
     verifyRequiredParams(array('data'));
@@ -4623,6 +4675,71 @@ $app->post('/overdue_lead_list','authenticateUser', function () use ($app) {
     $res_username=$db->get_username($userid);
 
     $result_overdue=$db->overdue_section_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // overdue section
+    if(mysqli_num_rows($result_overdue)>0){
+        while ($row = $result_overdue->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['overdue'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// overdue section user list
+$app->post('/overdue_user_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+
+    $res_user=$db->overdue_section_user_list($userid);
+
+    // overdue section
+    if(mysqli_num_rows($res_user)>0){
+        while ($row = $res_user->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+// overdue section lead company list
+$app->post('/overdue_user_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $loggedin_userid = $data_request->loggedin_userid;
+    $current_userid = $data_request->current_userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["overdue"] = array();
+
+    $result_overdue=$db->overdue_section_user_company_list($loggedin_userid,$current_userid);
 
     // if display=true -> show all radio buttons
     // if display=false -> show only 'Just An Update' radio button
@@ -4716,6 +4833,12 @@ $app->post('/tomorrow_lead_list','authenticateUser', function () use ($app) {
     echoResponse(200, $data);
 });
 
+/*
+ * user login
+ * Parameters: userid, password
+ * Method: POST
+ * 
+ */
 // involved section lead company list
 $app->post('/involved_lead_list','authenticateUser', function () use ($app) {
     verifyRequiredParams(array('data'));
@@ -4731,6 +4854,86 @@ $app->post('/involved_lead_list','authenticateUser', function () use ($app) {
     $res_username=$db->get_username($userid);
 
     $result_involved=$db->involved_section_company_list($userid);
+
+    // if display=true -> show all radio buttons
+    // if display=false -> show only 'Just An Update' radio button
+
+    // involved section
+    if(mysqli_num_rows($result_involved)>0){
+        while ($row = $result_involved->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp['assign'] = "false";
+            $temp['radiobutton_display'] = "false";
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data']['involved'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+
+/*
+ * user login
+ * Parameters: userid, password
+ * Method: POST
+ * 
+ */
+// involved section users and count list
+$app->post('/involved_user_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $userid = $data_request->userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+
+    $res_user=$db->involved_section_user_list($userid);
+
+    // involved section
+    if(mysqli_num_rows($res_user)>0){
+        while ($row = $res_user->fetch_assoc()) {
+            $temp = array();
+            foreach ($row as $key => $value) {
+                $temp[$key] = $value;
+            }
+            $temp = array_map('utf8_encode', $temp);
+            array_push($data['data'], $temp);
+        }
+    }
+
+    $data['success'] = true;
+
+    echoResponse(200, $data);
+});
+
+
+/*
+ * involved section lead company list of particular current user
+ * Parameters: {"loggedin_userid":"",}
+ * Method: POST
+ * 
+ */
+$app->post('/involved_user_lead_list','authenticateUser', function () use ($app) {
+    verifyRequiredParams(array('data'));
+    
+    $data_request = json_decode($app->request->post('data'));
+    $loggedin_userid = $data_request->loggedin_userid;
+    $current_userid = $data_request->current_userid;
+
+    $db = new DbOperation();
+    $data = array();
+    $data["data"] = array();
+    $data["data"]["involved"] = array();
+
+    $result_involved=$db->involved_section_user_company_list($loggedin_userid,$current_userid);
 
     // if display=true -> show all radio buttons
     // if display=false -> show only 'Just An Update' radio button
