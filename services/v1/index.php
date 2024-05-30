@@ -4450,6 +4450,8 @@ $app->post('/assign_multiple_lead','authenticateUser', function () use ($app) {
     $selected_user_id=$data_request->selected_user;
     $inq_ids=$data_request->inq_ids;
     
+    $inq_ids = preg_replace('/,\s*/', ',', $inq_ids); // Preprocess inq_ids to remove spaces after commas if present
+    
     $db = new DbOperation();
     $data = array();
     $data["data"] = array();
