@@ -37,7 +37,7 @@ $stmt_emp->execute();
 $emp_result = $stmt_emp->get_result();
 $stmt_emp->close();
 
-$stmt_scheme = $obj->con1->prepare("SELECT DISTINCT(s1.service), a1.service_id from (select MAX(t2.tatassign_id) as assign_id from tbl_tdtatassign t1, tbl_tdtatassign t2 where t1.tatassign_id=t2.tatassign_id GROUP BY t2.tatassign_inq_id) as tbl1, tbl_tdtatassign a1, tbl_service_master s1 where tbl1.assign_id=a1.tatassign_id and a1.service_id=s1.id and a1.tatassign_user_id=? and a1.stage_id in (select DISTINCT(stage_id) from pr_file_format f1 where f1.scheme_id=a1.service_id)");
+$stmt_scheme = $obj->con1->prepare("SELECT * FROM `tbl_service_master` WHERE service IN ('GOGTP IR', 'GOGTP PT')");
 $stmt_scheme->bind_param("i",$user_id);
 $stmt_scheme->execute();
 $scheme_result = $stmt_scheme->get_result();
@@ -343,9 +343,11 @@ function check_for_badlead($value)
               </a>
 
               <ul class="menu-sub">
-                <?php while($scheme=mysqli_fetch_array($scheme_result)){ ?>
-                  <li class="menu-item <?php echo basename($_SERVER["PHP_SELF"])==""?"active":"" ?>">
-                    <a href="javascript:process_pages('<?php echo $scheme['service'] ?>','<?php echo $scheme['service_id'] ?>');" class="menu-link">
+                <?php while($scheme=mysqli_fetch_array($scheme_result)){
+                    $isActive = (basename($_SERVER["PHP_SELF"]) == "process_gogtp_ir.php" && $scheme['service'] == "GOGTP IR") || (basename($_SERVER["PHP_SELF"]) == "process_gogtp_pt.php" && $scheme['service'] == "GOGTP PT") || (basename($_SERVER["PHP_SELF"]) == "process.php" && !in_array($scheme['service'], ["GOGTP IR", "GOGTP PT"])); 
+                ?>
+                  <li class="menu-item <?php echo $isActive ? "active" : "" ?>">
+                    <a href="javascript:process_pages('<?php echo $scheme['service'] ?>','<?php echo $scheme['id'] ?>');" class="menu-link">
                     <div data-i18n="course"><?php echo $scheme['service'] ?></div>
                     </a>
                   </li>
