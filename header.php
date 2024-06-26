@@ -45,33 +45,7 @@ $stmt_scheme->close();
 
 $adminmenu=array("company_plot_report.php","assign_estate.php","unassigned_estate_company.php","assign_estate_plotting.php","unassigned_estate_plotting.php","add_industrial_estate.php","add_industrial_estate_old.php","company_entry.php","estate_plotting_report.php","estate_status_report.php","visit_count_report.php","scheme.php","stages.php","pr_file_format.php","logged_users","employee_master.php","company_add_plot.php","company_add_plot_est.php","company_add_plot_com.php","update_status.php","logged_users.php","estate_list.php");
 
-$processmenu=array("process_gogtp_ir.php","process_gogtp_pt.php","process.php");
-/*function checkCompany_rawassign($value)
-{
-  $stmt_comp = $GLOBALS['obj']->con1->prepare("SELECT COUNT(*) as cnt FROM `tbl_tdrawassign` WHERE inq_id=?");
-  $stmt_comp->bind_param("i",$value);
-  $stmt_comp->execute();
-  $comp_result = $stmt_comp->get_result()->fetch_assoc();
-  $stmt_comp->close();
-
-  return $comp_result["cnt"];
-}
-
-function check_for_badlead($value)
-{
-  $stmt_badlead = $GLOBALS['obj']->con1->prepare("SELECT * FROM `tbl_tdrawassign` WHERE inq_id=? and stage='badlead' order by id desc limit 1");
-  $stmt_badlead->bind_param("i",$value);
-  $stmt_badlead->execute();
-  $badlead_result = $stmt_badlead->get_result()->fetch_assoc();
-  $stmt_badlead->close();
-
-  if($badlead_result["stage"]=="badlead"){
-    return 1;
-  }
-  else{
-    return 0;
-  }
-}*/
+$processmenu=array("process_gogtp_ir.php","process_gogtp_pt.php","process.php","process_scheme_list.php");
 ?>
 
 <!DOCTYPE html>
@@ -165,18 +139,8 @@ function check_for_badlead($value)
       }
 
       function process_pages(service_name, service_id) {
-        if(service_name=="GOGTP IR"){
-          createCookie("service_id",service_id);
-          window.location="process_gogtp_ir.php";
-        }
-        else if(service_name=="GOGTP PT"){
-          createCookie("service_id",service_id);
-          window.location="process_gogtp_pt.php";
-        }
-        else{
-          createCookie("service_id",service_id);
-          window.location="process.php";
-        }
+        createCookie("service_id",service_id);
+        window.location="process_scheme_list.php";
       }
     </script>
   </head>
@@ -190,7 +154,6 @@ function check_for_badlead($value)
         <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
           <div class="app-brand demo">
             <a href="#" class="app-brand-link">
-              
               <span class="app-brand-text demo menu-text fw-bolder ms-0">Bhura App</span>
             </a>
 

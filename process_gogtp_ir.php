@@ -2,8 +2,10 @@
 include "header.php";
 
 $service_id = $_COOKIE['service_id'];
+$scheme_name = $_REQUEST['scheme_name'];
+$claim = $_REQUEST['claim'];
 
-$stmt_stage = $obj->con1->prepare("SELECT ta.*, tapp.app_data FROM tbl_tdtatassign ta inner join tbl_tdtatclaim tc on ta.tatclaim_id = tc.tatassign_id and tc.claim_date_start<='".date('Y-m-d')."' inner join tbl_tdapplication tapp on tapp.inq_id = tc.tatassign_inq_id inner join tbl_service_master sm on sm.id = tc.service_id where ta.service_id='".$service_id."' and ta.tatassign_id in (select max(tatassign_id) from tbl_tdtatassign GROUP by tatclaim_id) and ta.tatclaim_id in (SELECT tatassign_id FROM tbl_tdtatclaim where tatassign_id in (select max(tatassign_id) from tbl_tdtatclaim where claim_date_start<='".date('Y-m-d')."' and claim_current='yes' and service_id='".$service_id."' group by service_id,tatassign_inq_id)) group by tc.tatassign_id having ta.tatassign_status = 'Process - GOGTP IR' and ta.tatassign_user_id = '".$user_id."' order by ta.tatassign_id");
+$stmt_stage = $obj->con1->prepare("SELECT ta.*, tapp.app_data FROM tbl_tdtatassign ta inner join tbl_tdtatclaim tc on ta.tatclaim_id = tc.tatassign_id and tc.claim_date_start<='".date('Y-m-d')."' inner join tbl_tdapplication tapp on tapp.inq_id = tc.tatassign_inq_id inner join tbl_service_master sm on sm.id = tc.service_id where ta.service_id='".$service_id."' and ta.tatassign_id in (select max(tatassign_id) from tbl_tdtatassign GROUP by tatclaim_id) and ta.tatclaim_id in (SELECT tatassign_id FROM tbl_tdtatclaim where tatassign_id in (select max(tatassign_id) from tbl_tdtatclaim where claim_date_start<='".date('Y-m-d')."' and claim_current='yes' and service_id='".$service_id."' group by service_id,tatassign_inq_id)) group by tc.tatassign_id having ta.tatassign_status='".$scheme_name."' and ta.tatassign_user_id = '".$user_id."' order by ta.tatassign_id");
 $stmt_stage->execute();
 $stage_result = $stmt_stage->get_result();
 $stmt_stage->close();
@@ -1354,7 +1356,7 @@ if(isset($_COOKIE["sql_error"]))
 ?>
 
 
-<h4 class="fw-bold py-3 mb-4">GOGTP IR (Total - <?php echo $total_count; ?>)</h4>
+<h4 class="fw-bold py-3 mb-4"><?php echo $scheme_name." (Total - ".$total_count.")"; ?></h4>
 
 <div class="col-md mb-4 mb-md-0">
   <!-- <small class="text-light fw-semibold">Basic Accordion</small> -->
@@ -1379,8 +1381,10 @@ if(isset($_COOKIE["sql_error"]))
             <div class="col-md mb-4 mb-md-0">
               <div class="accordion mt-3" id="accordionCompany">
 
-                <?php
-                $stmt_list = $obj->con1->prepare("SELECT s1.* FROM (SELECT DISTINCT(stage_id) as stage_id FROM `pr_file_format` WHERE scheme_id=?) tbl, tbl_tdstages s1 WHERE tbl.stage_id=s1.stage_id");
+              <?php
+                $claim_str = ($claim==1)?" AND s1.stage_type='Claim'":" AND s1.stage_type!='Claim'";
+
+                $stmt_list = $obj->con1->prepare("SELECT s1.* FROM (SELECT DISTINCT(stage_id) as stage_id FROM `pr_file_format` WHERE scheme_id=?) tbl, tbl_tdstages s1 WHERE tbl.stage_id=s1.stage_id".$claim_str);
                 $stmt_list->bind_param("i",$service_id);
                 $stmt_list->execute();
                 $result = $stmt_list->get_result();
@@ -1482,7 +1486,7 @@ if(isset($_COOKIE["sql_error"]))
           </div>
         </div>
       </div>
-      <?php
+    <?php
       $j++;
     } 
     ?>
