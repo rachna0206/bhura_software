@@ -274,7 +274,7 @@ if(isset($_REQUEST['btnsubmit']))
       $followup_date = date("Y-m-d");
       $admin_userid = '1';
 
-      if($plot_status!="" && $gst_no!="" && $firm_name!="" && $contact_person!="" && $contact_no!="" && $status!="" && $source!="" && $source_name!="" && $remark!="" && $PicFileName!=""){
+      if($plot_status!="" && $firm_name!="" && $contact_person!="" && $contact_no!="" && $status!="" && $source!="" && $source_name!="" && $remark!="" && $PicFileName!=""){
         if($status=="Positive" || $status=="Negative")
         {
           if(checkCompany_rawassign($id)){
