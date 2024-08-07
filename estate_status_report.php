@@ -714,6 +714,11 @@ if(isset($_COOKIE["msg"]) )
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Records</h5>
+
+        <form action="generate_report_excel.php" method="post" style="display:inline;">
+            <input type="hidden" name="query" value="SELECT i1.*, d1.status,u1.name as user_name,d1.datetime FROM `tbl_industrial_estate` i1, `pr_add_industrialestate_details` d1,tbl_users u1 where i1.id=d1.industrial_estate_id and d1.user_id=u1.id and d1.status in ('Fake','Duplicate')">
+            <button type="submit" class="btn btn-primary">Download Excel</button>
+        </form>
       </div>
       <div class="table-responsive text-nowrap">
         <table class="table table-hover" id="table_id">
@@ -734,7 +739,7 @@ if(isset($_COOKIE["msg"]) )
           <tbody class="table-border-bottom-0">
             <?php 
       
-              $stmt_list = $obj->con1->prepare("SELECT i1.*, d1.status,u1.name as user_name,d1.datetime FROM `tbl_industrial_estate` i1, `pr_add_industrialestate_details` d1,tbl_users u1 where i1.id=d1.industrial_estate_id and d1.user_id=u1.id and d1.status in ('Fake','Duplicate');");
+              $stmt_list = $obj->con1->prepare("SELECT i1.*, d1.status,u1.name as user_name,d1.datetime FROM `tbl_industrial_estate` i1, `pr_add_industrialestate_details` d1,tbl_users u1 where i1.id=d1.industrial_estate_id and d1.user_id=u1.id and d1.status in ('Fake','Duplicate')");
               $stmt_list->execute();
               $result = $stmt_list->get_result();
               $stmt_list->close();
